@@ -43,7 +43,7 @@ function renderShell() {
       <button id="btnToggleSidebar" class="icon-btn" aria-label="Menu">${ICONS.menu}</button>
       <div class="topbar-brand">
         <img src="assets/logo.png" alt="Logo" class="topbar-logo" />
-        <span>Cucian Mobil POS</span>
+        <span>Arjuna Cakra Clean</span>
       </div>
       <div class="topbar-user">
         <span class="user-name">${escapeHtml(currentUser?.name || "")}</span>
@@ -55,8 +55,8 @@ function renderShell() {
       <div class="sidebar-brand">
         <img src="assets/logo.png" alt="Logo" />
         <div>
-          <strong>Cucian Mobil</strong>
-          <small>Point of Sale</small>
+          <strong>Arjuna Cakra Clean</strong>
+          <small>clean is style</small>
         </div>
       </div>
       <nav class="sidebar-nav">${navHtml}</nav>
