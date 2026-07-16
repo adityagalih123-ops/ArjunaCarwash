@@ -42,7 +42,7 @@ async function loadLaporan() {
   const end = firebase.firestore.Timestamp.fromDate(endOfDay(new Date(toStr)));
 
   const tbody = document.getElementById("trxTableBody");
-  tbody.innerHTML = `<tr><td colspan="8" class="text-center text-muted">Memuat data...</td></tr>`;
+  tbody.innerHTML = `<tr><td colspan="11" class="text-center text-muted">Memuat data...</td></tr>`;
 
   try {
     const snap = await db
@@ -57,19 +57,21 @@ async function loadLaporan() {
     await renderTable();
   } catch (err) {
     console.error(err);
-    tbody.innerHTML = `<tr><td colspan="8" class="text-center text-danger">Gagal memuat data. ${err.message.includes("index") ? "Buat Firestore index sesuai instruksi di console." : ""}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="11" class="text-center text-danger">Gagal memuat data. ${err.message.includes("index") ? "Buat Firestore index sesuai instruksi di console." : ""}</td></tr>`;
   }
 }
 
 function renderSummary() {
-  let omzet = 0, hpp = 0;
+  let omzet = 0, hpp = 0, diskon = 0;
   currentTrxList.forEach((t) => {
     omzet += t.total || 0;
     hpp += t.totalHpp || 0;
+    diskon += t.discountAmount || 0;
   });
   document.getElementById("sJumlah").textContent = currentTrxList.length;
   document.getElementById("sOmzet").textContent = formatRupiah(omzet);
   document.getElementById("sHpp").textContent = formatRupiah(hpp);
+  document.getElementById("sDiskon").textContent = formatRupiah(diskon);
   document.getElementById("sLaba").textContent = formatRupiah(omzet - hpp);
 }
 
@@ -89,6 +91,9 @@ async function renderTable() {
       const d = toDate(t.createdAt) || new Date();
       const laba = (t.total || 0) - (t.totalHpp || 0);
       const shiftLabel = await getShiftLabel(t.shiftId);
+      const diskonLabel = t.discountAmount > 0
+        ? `${formatRupiah(t.discountAmount)}${t.discountReason ? ` (${escapeHtml(t.discountReason)})` : ""}`
+        : "-";
       return `
       <tr>
         <td class="font-bold">${escapeHtml(t.trxNo)}</td>
@@ -96,6 +101,9 @@ async function renderTable() {
         <td>${formatJam(d)}</td>
         <td>${escapeHtml(shiftLabel)}</td>
         <td>${escapeHtml(t.cashierName)}</td>
+        <td>${escapeHtml(t.paymentMethod || "-")}</td>
+        <td class="text-right">${formatRupiah(t.subtotal ?? t.total)}</td>
+        <td class="text-right ${t.discountAmount > 0 ? "text-danger" : "text-muted"}">${diskonLabel}</td>
         <td class="text-right">${formatRupiah(t.total)}</td>
         <td class="text-right">${formatRupiah(t.totalHpp)}</td>
         <td class="text-right text-success">${formatRupiah(laba)}</td>
@@ -110,7 +118,7 @@ async function exportCsv() {
     showToast("Tidak ada data untuk diexport.", "error");
     return;
   }
-  const header = ["No Transaksi", "Tanggal", "Jam", "Shift", "Kasir", "Total", "HPP", "Laba Kotor"];
+  const header = ["No Transaksi", "Tanggal", "Jam", "Shift", "Kasir", "Metode Pembayaran", "Subtotal", "Diskon", "Alasan Diskon", "Total", "HPP", "Laba Kotor"];
   const lines = [header.join(",")];
 
   for (const t of currentTrxList) {
@@ -123,6 +131,10 @@ async function exportCsv() {
       formatJam(d),
       `"${shiftLabel.replace(/"/g, '""')}"`,
       `"${(t.cashierName || "").replace(/"/g, '""')}"`,
+      `"${(t.paymentMethod || "").replace(/"/g, '""')}"`,
+      t.subtotal ?? t.total,
+      t.discountAmount || 0,
+      `"${(t.discountReason || "").replace(/"/g, '""')}"`,
       t.total || 0,
       t.totalHpp || 0,
       laba

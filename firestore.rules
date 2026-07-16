@@ -54,5 +54,15 @@ service cloud.firestore {
       allow read: if isSignedIn();
       allow write: if isSignedIn();
     }
+
+    // --- expenses (belanja / pengeluaran operasional) ---
+    // Semua user login boleh baca & catat pengeluaran baru.
+    // Edit/hapus hanya boleh oleh admin ATAU user yang membuat catatan itu sendiri.
+    match /expenses/{expenseId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update, delete: if isSignedIn() &&
+        (isAdmin() || resource.data.createdByUid == request.auth.uid);
+    }
   }
 }

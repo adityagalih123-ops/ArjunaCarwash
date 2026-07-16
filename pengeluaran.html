@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<title>Belanja/Pengeluaran - Cucian Mobil POS</title>
+<link rel="icon" href="assets/logo.png" />
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body data-page="pengeluaran">
+  <div id="shell"></div>
+
+  <main class="content">
+    <div class="page-header">
+      <div>
+        <h1>Belanja / Pengeluaran</h1>
+        <p>Catat pembelian perlengkapan &amp; pengeluaran operasional</p>
+      </div>
+      <button class="btn btn-primary" id="btnTambah">+ Catat Pengeluaran</button>
+    </div>
+
+    <div class="card mb-16">
+      <div class="form-row cols-3">
+        <div class="form-group" style="margin-bottom:0;">
+          <label for="filterFrom">Dari Tanggal</label>
+          <input type="date" id="filterFrom" />
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+          <label for="filterTo">Sampai Tanggal</label>
+          <input type="date" id="filterTo" />
+        </div>
+        <div class="form-group" style="margin-bottom:0; display:flex; align-items:flex-end; gap:8px;">
+          <button class="btn btn-primary w-full" id="btnFilter">Terapkan Filter</button>
+          <button class="btn btn-outline" id="btnExportCsv">CSV</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="stat-grid" style="grid-template-columns:repeat(2,1fr);">
+      <div class="stat-card">
+        <div class="stat-label">Jumlah Transaksi Belanja</div>
+        <div class="stat-value" id="sJumlah">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Total Pengeluaran</div>
+        <div class="stat-value" id="sTotal" style="color:var(--danger);">Rp 0</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Tanggal</th>
+              <th>Nama Item</th>
+              <th class="text-right">Qty</th>
+              <th>Satuan</th>
+              <th class="text-right">Harga Satuan</th>
+              <th class="text-right">Harga Total</th>
+              <th>Dicatat Oleh</th>
+              <th class="text-right">Aksi</th>
+            </tr>
+          </thead>
+          <tbody id="expenseTableBody"></tbody>
+        </table>
+      </div>
+      <div id="emptyState" class="empty-state" style="display:none;">
+        <svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="2.2" stroke-width="1.6"/><path d="M3 9.5h18" stroke-width="1.6"/></svg>
+        <p>Belum ada catatan pengeluaran pada rentang tanggal ini.</p>
+      </div>
+    </div>
+  </main>
+
+  <!-- Modal Tambah/Edit Pengeluaran -->
+  <div class="modal-backdrop" id="expenseModal">
+    <div class="modal">
+      <h3 class="modal-title" id="modalTitle">Catat Pengeluaran</h3>
+      <form id="expenseForm">
+        <input type="hidden" id="expenseId" />
+        <div class="form-group">
+          <label for="tanggalBeli">Tanggal Pembelian</label>
+          <input type="date" id="tanggalBeli" required />
+        </div>
+        <div class="form-group">
+          <label for="namaItemBeli">Nama Item</label>
+          <input type="text" id="namaItemBeli" placeholder="Contoh: Sabun Shampoo Mobil" required />
+        </div>
+        <div class="form-row cols-2">
+          <div class="form-group">
+            <label for="qtyBeli">Kuantitas</label>
+            <input type="number" id="qtyBeli" min="0" step="0.01" required />
+          </div>
+          <div class="form-group">
+            <label for="satuanBeli">Satuan</label>
+            <select id="satuanBeli">
+              <option value="pcs">Pcs</option>
+              <option value="liter">Liter</option>
+              <option value="kg">Kg</option>
+              <option value="pack">Pack</option>
+              <option value="box">Box</option>
+              <option value="botol">Botol</option>
+              <option value="galon">Galon</option>
+              <option value="unit">Unit</option>
+              <option value="lainnya">Lainnya...</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group" id="satuanLainnyaGroup" style="display:none;">
+          <label for="satuanLainnya">Sebutkan Satuan Lain</label>
+          <input type="text" id="satuanLainnya" placeholder="Contoh: rim, roll, dus" />
+        </div>
+        <div class="form-row cols-2">
+          <div class="form-group">
+            <label for="hargaSatuanBeli">Harga Satuan</label>
+            <input type="number" id="hargaSatuanBeli" min="0" step="500" required />
+          </div>
+          <div class="form-group">
+            <label>Harga Total</label>
+            <input type="text" id="hargaTotalPreview" disabled />
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="catatanBeli">Catatan (opsional)</label>
+          <input type="text" id="catatanBeli" placeholder="Keterangan tambahan" />
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn" id="btnBatal">Batal</button>
+          <button type="submit" class="btn btn-primary" id="btnSimpanExpense">Simpan</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/12.16.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/12.16.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore-compat.js"></script>
+  <script src="js/firebase-config.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/auth-guard.js"></script>
+  <script src="js/sidebar.js"></script>
+  <script src="js/pengeluaran.js"></script>
+</body>
+</html>

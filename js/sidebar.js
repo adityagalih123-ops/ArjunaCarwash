@@ -9,6 +9,7 @@ const MENU_ITEMS = [
   { page: "kasir", href: "kasir.html", label: "Kasir", icon: "cart" },
   { page: "shift", href: "shift.html", label: "Shift", icon: "clock" },
   { page: "produk", href: "produk.html", label: "Master Produk", icon: "box" },
+  { page: "pengeluaran", href: "pengeluaran.html", label: "Belanja/Pengeluaran", icon: "wallet" },
   { page: "laporan-transaksi", href: "laporan-transaksi.html", label: "Laporan Transaksi", icon: "list" },
   { page: "laporan-item", href: "laporan-item.html", label: "Laporan Item Terjual", icon: "chart" }
 ];
@@ -20,6 +21,7 @@ const ICONS = {
   box: '<svg viewBox="0 0 24 24"><path d="M3.5 7.5 12 3l8.5 4.5V17L12 21.5 3.5 17Z" fill="none" stroke-width="1.8" stroke-linejoin="round"/><path d="M3.5 7.5 12 12l8.5-4.5M12 12v9.5" fill="none" stroke-width="1.8"/></svg>',
   list: '<svg viewBox="0 0 24 24"><path d="M8 6h12M8 12h12M8 18h12" stroke-width="1.8" stroke-linecap="round"/><circle cx="4" cy="6" r="1.3"/><circle cx="4" cy="12" r="1.3"/><circle cx="4" cy="18" r="1.3"/></svg>',
   chart: '<svg viewBox="0 0 24 24"><path d="M4 20V10M11 20V4M18 20v-7" stroke-width="2" stroke-linecap="round"/></svg>',
+  wallet: '<svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="2.2" fill="none" stroke-width="1.8"/><path d="M3 9.5h18" stroke-width="1.8"/><circle cx="16.5" cy="14" r="1.3"/></svg>',
   logout: '<svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" fill="none" stroke-width="1.8" stroke-linecap="round"/><path d="M16 17l5-5-5-5M21 12H9" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   menu: '<svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16" stroke-width="2" stroke-linecap="round"/></svg>'
 };

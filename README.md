@@ -31,6 +31,7 @@ pos-cucian-mobil/
 ├── kasir.html                  # Halaman transaksi kasir
 ├── produk.html                 # Master produk (CRUD)
 ├── shift.html                  # Manajemen shift
+├── pengeluaran.html            # Belanja / Pengeluaran (CRUD)
 ├── laporan-transaksi.html      # Laporan transaksi harian
 ├── laporan-item.html           # Laporan item terjual
 ├── firebase.json                # Konfigurasi Firebase Hosting
@@ -47,6 +48,7 @@ pos-cucian-mobil/
 │   ├── kasir.js
 │   ├── produk.js
 │   ├── shift.js
+│   ├── pengeluaran.js
 │   ├── laporan-transaksi.js
 │   └── laporan-item.js
 └── assets/
@@ -95,9 +97,32 @@ mudah dikembangkan.
   "items": [
     { "productId": "p1", "name": "Cuci Mobil Reguler", "qty": 2, "price": 35000, "hpp": 12000, "subtotal": 70000 }
   ],
-  "total": 70000,
+  "subtotal": 70000,
+  "discountType": "percent" | "nominal" | null,
+  "discountValue": 10,
+  "discountAmount": 7000,
+  "discountReason": "Promo pelanggan setia",
+  "paymentMethod": "Tunai" | "Debit/Kredit" | "QRIS" | "Transfer Bank" | "Lainnya",
+  "total": 63000,
   "totalHpp": 24000,
   "createdAt": Timestamp
+}
+```
+
+### Koleksi `expenses/{expenseId}` — Belanja/Pengeluaran
+```jsonc
+{
+  "date": Timestamp,           // tanggal pembelian (bisa mundur, diisi manual)
+  "itemName": "Sabun Shampoo Mobil",
+  "qty": 5,
+  "unit": "liter",              // pcs | liter | kg | pack | box | botol | galon | unit | (bebas via "Lainnya")
+  "unitPrice": 45000,
+  "totalPrice": 225000,         // qty x unitPrice (dihitung otomatis)
+  "notes": "Beli di toko ABC",
+  "createdByUid": "uid-user",
+  "createdByName": "Budi Santoso",
+  "createdAt": Timestamp,
+  "updatedAt": Timestamp
 }
 ```
 
@@ -235,6 +260,8 @@ Setelah selesai, Firebase akan memberikan URL seperti
 | Buka/Tutup shift               | ✅    | ✅    |
 | Edit harga saat transaksi      | ✅    | Hanya jika `canEditPrice: true` |
 | Tambah/Edit/Hapus master produk| ✅    | ❌ (read-only) |
+| Catat pengeluaran/belanja      | ✅    | ✅    |
+| Edit/Hapus catatan pengeluaran | ✅ (semua) | Hanya catatan miliknya sendiri |
 | Lihat laporan                  | ✅    | ✅    |
 
 Role dan `canEditPrice` diatur lewat field pada dokumen

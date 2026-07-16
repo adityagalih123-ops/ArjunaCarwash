@@ -18,6 +18,21 @@ function bindEvents() {
     renderCart();
   });
   document.getElementById("btnBayar").addEventListener("click", prosesTransaksi);
+
+  document.getElementById("btnToggleDiscount").addEventListener("click", () => {
+    const box = document.getElementById("discountBox");
+    const isHidden = box.style.display === "none";
+    box.style.display = isHidden ? "block" : "none";
+    document.getElementById("btnToggleDiscount").textContent = isHidden ? "- Sembunyikan Diskon" : "+ Tambah Diskon";
+    if (!isHidden) {
+      // Diskon disembunyikan -> reset nilainya
+      document.getElementById("discountValue").value = 0;
+      document.getElementById("discountReason").value = "";
+      renderCart();
+    }
+  });
+  document.getElementById("discountType").addEventListener("change", renderCart);
+  document.getElementById("discountValue").addEventListener("input", renderCart);
 }
 
 async function loadProducts() {
@@ -121,6 +136,22 @@ function removeFromCart(productId) {
   renderCart();
 }
 
+function getDiscountInfo() {
+  const subtotal = cart.reduce((sum, i) => sum + i.price * i.qty, 0);
+  const type = document.getElementById("discountType").value; // 'percent' | 'nominal'
+  const rawValue = Number(document.getElementById("discountValue").value) || 0;
+  const reason = document.getElementById("discountReason").value.trim();
+
+  let amount = 0;
+  if (rawValue > 0) {
+    amount = type === "percent" ? subtotal * (rawValue / 100) : rawValue;
+  }
+  // Diskon tidak boleh melebihi subtotal atau bernilai negatif
+  amount = Math.max(0, Math.min(amount, subtotal));
+
+  return { subtotal, type, value: rawValue, amount, reason };
+}
+
 function renderCart() {
   const list = document.getElementById("cartList");
   const empty = document.getElementById("cartEmpty");
@@ -162,9 +193,18 @@ function renderCart() {
       .join("");
   }
 
-  const subtotal = cart.reduce((sum, i) => sum + i.price * i.qty, 0);
+  const { subtotal, amount: discountAmount } = getDiscountInfo();
+  const total = subtotal - discountAmount;
+
   document.getElementById("sumSubtotal").textContent = formatRupiah(subtotal);
-  document.getElementById("sumTotal").textContent = formatRupiah(subtotal);
+  const discountRow = document.getElementById("sumDiscountRow");
+  if (discountAmount > 0) {
+    discountRow.style.display = "flex";
+    document.getElementById("sumDiscount").textContent = "- " + formatRupiah(discountAmount);
+  } else {
+    discountRow.style.display = "none";
+  }
+  document.getElementById("sumTotal").textContent = formatRupiah(total);
 }
 
 async function prosesTransaksi() {
@@ -174,12 +214,21 @@ async function prosesTransaksi() {
     return;
   }
 
+  const { subtotal, type: discountType, value: discountValue, amount: discountAmount, reason: discountReason } = getDiscountInfo();
+
+  if (discountAmount > 0 && !discountReason) {
+    showToast("Alasan diskon wajib diisi jika memberikan diskon.", "error");
+    document.getElementById("discountReason").focus();
+    return;
+  }
+
+  const paymentMethod = document.getElementById("paymentMethod").value;
   const btn = document.getElementById("btnBayar");
   setLoading(btn, true, "Menyimpan...");
 
   try {
     const trxNo = await generateNomorTransaksi();
-    const total = cart.reduce((sum, i) => sum + i.price * i.qty, 0);
+    const total = subtotal - discountAmount;
     const totalHpp = cart.reduce((sum, i) => sum + i.hpp * i.qty, 0);
     const now = new Date();
 
@@ -196,6 +245,12 @@ async function prosesTransaksi() {
         hpp: i.hpp,
         subtotal: i.price * i.qty
       })),
+      subtotal,
+      discountType: discountAmount > 0 ? discountType : null,
+      discountValue: discountAmount > 0 ? discountValue : 0,
+      discountAmount,
+      discountReason: discountAmount > 0 ? discountReason : "",
+      paymentMethod,
       total,
       totalHpp,
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -206,6 +261,11 @@ async function prosesTransaksi() {
     cetakStruk({ ...trxData, createdAt: now });
     showToast(`Transaksi ${trxNo} berhasil disimpan.`, "success");
     cart = [];
+    document.getElementById("discountValue").value = 0;
+    document.getElementById("discountReason").value = "";
+    document.getElementById("discountBox").style.display = "none";
+    document.getElementById("btnToggleDiscount").textContent = "+ Tambah Diskon";
+    document.getElementById("paymentMethod").value = "Tunai";
     renderCart();
   } catch (err) {
     console.error(err);
@@ -231,6 +291,7 @@ async function cetakStruk(trx) {
   document.getElementById("rTrxNo").textContent = trx.trxNo;
   document.getElementById("rTanggal").textContent = `${formatTanggal(trx.createdAt)} ${formatJam(trx.createdAt)}`;
   document.getElementById("rKasir").textContent = trx.cashierName;
+  document.getElementById("rPayment").textContent = trx.paymentMethod || "-";
 
   const itemsHtml = trx.items
     .map(
@@ -245,6 +306,20 @@ async function cetakStruk(trx) {
     )
     .join("");
   document.getElementById("rItemsTable").innerHTML = itemsHtml;
+  document.getElementById("rSubtotal").textContent = formatRupiah(trx.subtotal ?? trx.total);
+
+  const discRow = document.getElementById("rDiscountRow");
+  if (trx.discountAmount > 0) {
+    discRow.style.display = "table-row";
+    const label = trx.discountType === "percent"
+      ? `Diskon (${trx.discountValue}%)`
+      : "Diskon";
+    document.getElementById("rDiscountLabel").textContent = label;
+    document.getElementById("rDiscount").textContent = "- " + formatRupiah(trx.discountAmount);
+  } else {
+    discRow.style.display = "none";
+  }
+
   document.getElementById("rTotal").textContent = formatRupiah(trx.total);
 
   document.getElementById("receiptArea").classList.add("show");
