@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<title>Manajemen Shift - Cucian Mobil POS</title>
+<link rel="icon" href="assets/logo.png" />
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body data-page="shift">
+  <div id="shell"></div>
+
+  <main class="content">
+    <div class="page-header">
+      <div>
+        <h1>Manajemen Shift</h1>
+        <p>Buka dan tutup shift kasir</p>
+      </div>
+    </div>
+
+    <div class="card" id="shiftCard">
+      <p class="text-muted">Memuat status shift...</p>
+    </div>
+
+    <div class="card">
+      <strong>Riwayat Shift</strong>
+      <div class="table-wrap mt-16">
+        <table>
+          <thead>
+            <tr>
+              <th>Kasir</th>
+              <th>Buka</th>
+              <th>Tutup</th>
+              <th class="text-right">Modal Awal</th>
+              <th class="text-right">Omzet</th>
+              <th class="text-right">Selisih Kas</th>
+              <th class="text-center">Status</th>
+            </tr>
+          </thead>
+          <tbody id="riwayatShiftBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <!-- Modal Buka Shift -->
+  <div class="modal-backdrop" id="bukaShiftModal">
+    <div class="modal">
+      <h3 class="modal-title">Buka Shift Baru</h3>
+      <form id="bukaShiftForm">
+        <div class="form-group">
+          <label for="namaKasirShift">Nama Kasir</label>
+          <input type="text" id="namaKasirShift" required />
+        </div>
+        <div class="form-group">
+          <label>Jam Buka</label>
+          <input type="text" id="jamBukaPreview" disabled />
+        </div>
+        <div class="form-group">
+          <label for="modalAwal">Modal Awal (Kas)</label>
+          <input type="number" id="modalAwal" min="0" step="1000" required />
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn" id="btnBatalBuka">Batal</button>
+          <button type="submit" class="btn btn-primary" id="btnSimpanBuka">Buka Shift</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal Tutup Shift -->
+  <div class="modal-backdrop" id="tutupShiftModal">
+    <div class="modal">
+      <h3 class="modal-title">Tutup Shift</h3>
+      <div id="ringkasanTutup" class="mb-16"></div>
+      <form id="tutupShiftForm">
+        <div class="form-group">
+          <label for="kasFisik">Kas Fisik Saat Ini</label>
+          <input type="number" id="kasFisik" min="0" step="1000" required />
+          <p class="field-hint">Hitung uang tunai fisik di laci kasir saat ini.</p>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn" id="btnBatalTutup">Batal</button>
+          <button type="submit" class="btn btn-danger" id="btnSimpanTutup">Tutup Shift</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/12.16.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/12.16.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore-compat.js"></script>
+  <script src="js/firebase-config.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/auth-guard.js"></script>
+  <script src="js/sidebar.js"></script>
+  <script src="js/shift.js"></script>
+</body>
+</html>

@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<title>Laporan Transaksi - Cucian Mobil POS</title>
+<link rel="icon" href="assets/logo.png" />
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body data-page="laporan-transaksi">
+  <div id="shell"></div>
+
+  <main class="content">
+    <div class="page-header">
+      <div>
+        <h1>Laporan Transaksi Harian</h1>
+        <p>Rekap seluruh transaksi berdasarkan tanggal</p>
+      </div>
+      <button class="btn btn-outline" id="btnExportCsv">Export CSV</button>
+    </div>
+
+    <div class="card mb-16">
+      <div class="form-row cols-3">
+        <div class="form-group" style="margin-bottom:0;">
+          <label for="filterFrom">Dari Tanggal</label>
+          <input type="date" id="filterFrom" />
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+          <label for="filterTo">Sampai Tanggal</label>
+          <input type="date" id="filterTo" />
+        </div>
+        <div class="form-group" style="margin-bottom:0; display:flex; align-items:flex-end;">
+          <button class="btn btn-primary w-full" id="btnFilter">Terapkan Filter</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="stat-grid">
+      <div class="stat-card">
+        <div class="stat-label">Jumlah Transaksi</div>
+        <div class="stat-value" id="sJumlah">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Total Omzet</div>
+        <div class="stat-value" id="sOmzet">Rp 0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Total HPP</div>
+        <div class="stat-value" id="sHpp">Rp 0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Laba Kotor</div>
+        <div class="stat-value" id="sLaba">Rp 0</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>No. Transaksi</th>
+              <th>Tanggal</th>
+              <th>Jam</th>
+              <th>Shift</th>
+              <th>Kasir</th>
+              <th class="text-right">Total</th>
+              <th class="text-right">HPP</th>
+              <th class="text-right">Laba Kotor</th>
+            </tr>
+          </thead>
+          <tbody id="trxTableBody"></tbody>
+        </table>
+      </div>
+      <div id="trxEmpty" class="empty-state" style="display:none;">
+        <p>Tidak ada transaksi pada rentang tanggal ini.</p>
+      </div>
+    </div>
+  </main>
+
+  <script src="https://www.gstatic.com/firebasejs/12.16.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/12.16.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore-compat.js"></script>
+  <script src="js/firebase-config.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/auth-guard.js"></script>
+  <script src="js/sidebar.js"></script>
+  <script src="js/laporan-transaksi.js"></script>
+</body>
+</html>

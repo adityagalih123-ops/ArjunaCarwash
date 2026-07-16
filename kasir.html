@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<title>Kasir - Cucian Mobil POS</title>
+<link rel="icon" href="assets/logo.png" />
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body data-page="kasir">
+  <div id="shell"></div>
+
+  <main class="content">
+    <div class="page-header">
+      <div>
+        <h1>Kasir</h1>
+        <p id="shiftInfoLabel">Memeriksa shift aktif...</p>
+      </div>
+    </div>
+
+    <div id="noShiftWarning" class="card" style="display:none; border-color:var(--danger); background:var(--danger-light);">
+      <strong class="text-danger">Belum ada shift aktif</strong>
+      <p class="mt-8">Anda harus membuka shift terlebih dahulu sebelum bisa bertransaksi.</p>
+      <a href="shift.html" class="btn btn-danger mt-8">Buka Shift Sekarang</a>
+    </div>
+
+    <div id="kasirArea" class="kasir-grid" style="display:none;">
+      <!-- Kolom Produk -->
+      <div class="card">
+        <div class="search-box">
+          <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" stroke-width="1.8"/><path d="M21 21l-4.5-4.5" stroke-width="1.8" stroke-linecap="round"/></svg>
+          <input type="text" id="searchProduk" placeholder="Cari produk..." />
+        </div>
+        <div class="product-pick-grid" id="productGrid"></div>
+      </div>
+
+      <!-- Kolom Keranjang -->
+      <div class="card">
+        <div class="flex-between mb-16">
+          <strong>Keranjang</strong>
+          <button class="btn btn-sm" id="btnClearCart">Kosongkan</button>
+        </div>
+        <div id="cartList"></div>
+        <div id="cartEmpty" class="empty-state">
+          <svg viewBox="0 0 24 24"><circle cx="9" cy="20" r="1.4"/><circle cx="18" cy="20" r="1.4"/><path d="M2.5 3h2.4l2.1 11.3a2 2 0 0 0 2 1.7h8.2a2 2 0 0 0 2-1.6L21 8H6.2" stroke-width="1.6"/></svg>
+          <p>Keranjang masih kosong. Pilih produk di sebelah kiri.</p>
+        </div>
+
+        <div class="mt-16">
+          <div class="cart-summary-row"><span>Subtotal</span><span id="sumSubtotal">Rp 0</span></div>
+          <div class="cart-summary-row total"><span>Total</span><span id="sumTotal">Rp 0</span></div>
+        </div>
+
+        <button class="btn btn-primary btn-block mt-16" id="btnBayar" disabled>Simpan &amp; Cetak Struk</button>
+      </div>
+    </div>
+  </main>
+
+  <!-- Struk untuk dicetak -->
+  <div class="receipt" id="receiptArea">
+    <h2 id="rCompanyName">Cucian Mobil POS</h2>
+    <p class="r-center" id="rAddress"></p>
+    <hr />
+    <table>
+      <tr><td>No. Transaksi</td><td id="rTrxNo"></td></tr>
+      <tr><td>Tanggal</td><td id="rTanggal"></td></tr>
+      <tr><td>Kasir</td><td id="rKasir"></td></tr>
+    </table>
+    <hr />
+    <table id="rItemsTable"></table>
+    <hr />
+    <table>
+      <tr><td><strong>TOTAL</strong></td><td class="text-right"><strong id="rTotal"></strong></td></tr>
+    </table>
+    <hr />
+    <p class="r-center">Terima kasih atas kunjungan Anda!</p>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/12.16.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/12.16.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore-compat.js"></script>
+  <script src="js/firebase-config.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/auth-guard.js"></script>
+  <script src="js/sidebar.js"></script>
+  <script src="js/kasir.js"></script>
+</body>
+</html>

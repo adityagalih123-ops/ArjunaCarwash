@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<title>Login - Cucian Mobil POS</title>
+<link rel="icon" href="assets/logo.png" />
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body class="login-page">
+
+  <div class="login-card">
+    <img src="assets/logo.png" alt="Logo Perusahaan" class="login-logo" />
+    <h1>Cucian Mobil POS</h1>
+    <p class="subtitle">Masuk untuk mulai bertransaksi</p>
+
+    <div id="loginError" class="login-error"></div>
+
+    <form id="loginForm" class="login-form">
+      <div class="form-group">
+        <label for="email">Email</label>
+        <input type="email" id="email" placeholder="nama@email.com" required autocomplete="username" />
+      </div>
+      <div class="form-group">
+        <label for="password">Kata Sandi</label>
+        <input type="password" id="password" placeholder="••••••••" required autocomplete="current-password" />
+      </div>
+      <button type="submit" id="btnLogin" class="btn btn-primary btn-block">Masuk</button>
+    </form>
+
+    <p class="login-footer">&copy; <span id="year"></span> Cucian Mobil POS. Semua hak dilindungi.</p>
+  </div>
+
+  <!-- Firebase SDK (compat, tanpa build tool) -->
+  <script src="https://www.gstatic.com/firebasejs/12.16.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/12.16.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore-compat.js"></script>
+
+  <script src="js/firebase-config.js"></script>
+  <script src="js/utils.js"></script>
+  <script>
+    document.getElementById("year").textContent = new Date().getFullYear();
+
+    // Jika sudah login, langsung lempar ke dashboard
+    auth.onAuthStateChanged((user) => {
+      if (user) window.location.href = "dashboard.html";
+    });
+
+    const msg = getQueryParam("msg");
+    if (msg) {
+      const errBox = document.getElementById("loginError");
+      errBox.textContent = msg;
+      errBox.classList.add("show");
+    }
+
+    document.getElementById("loginForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const email = document.getElementById("email").value.trim();
+      const password = document.getElementById("password").value;
+      const btn = document.getElementById("btnLogin");
+      const errBox = document.getElementById("loginError");
+      errBox.classList.remove("show");
+
+      setLoading(btn, true, "Memproses...");
+      try {
+        await auth.signInWithEmailAndPassword(email, password);
+        localStorage.setItem("pos_last_activity", String(Date.now()));
+        window.location.href = "dashboard.html";
+      } catch (err) {
+        let pesan = "Email atau kata sandi salah.";
+        if (err.code === "auth/too-many-requests") pesan = "Terlalu banyak percobaan. Coba lagi nanti.";
+        if (err.code === "auth/user-disabled") pesan = "Akun Anda dinonaktifkan.";
+        if (err.code === "auth/invalid-email") pesan = "Format email tidak valid.";
+        errBox.textContent = pesan;
+        errBox.classList.add("show");
+      } finally {
+        setLoading(btn, false);
+      }
+    });
+  </script>
+</body>
+</html>
