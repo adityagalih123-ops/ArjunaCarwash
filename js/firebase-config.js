@@ -15,12 +15,12 @@
  */
 
 const firebaseConfig = {
-  apiKey: "AIzaSyCrozf7FJFzgKKfvUQRmX81uvXcTuDVlko",
-  authDomain: "arjunacarwash-72c34.firebaseapp.com",
-  projectId: "arjunacarwash-72c34",
-  storageBucket: "arjunacarwash-72c34.firebasestorage.app",
-  messagingSenderId: "752144664145",
-  appId: "1:752144664145:web:40614daf52982736a31a70"
+  apiKey: "GANTI_DENGAN_API_KEY_ANDA",
+  authDomain: "GANTI_DENGAN_PROJECT_ID.firebaseapp.com",
+  projectId: "GANTI_DENGAN_PROJECT_ID",
+  storageBucket: "GANTI_DENGAN_PROJECT_ID.appspot.com",
+  messagingSenderId: "GANTI_DENGAN_SENDER_ID",
+  appId: "GANTI_DENGAN_APP_ID"
 };
 
 // Inisialisasi Firebase (SDK versi "compat" dipakai supaya tidak perlu

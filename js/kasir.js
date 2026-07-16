@@ -22,8 +22,10 @@ function bindEvents() {
 
 async function loadProducts() {
   try {
-    const snap = await db.collection(COLLECTIONS.PRODUCTS).where("active", "==", true).orderBy("name").get();
-    products = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    const snap = await db.collection(COLLECTIONS.PRODUCTS).where("active", "==", true).get();
+    products = snap.docs
+      .map((d) => ({ id: d.id, ...d.data() }))
+      .sort((a, b) => a.name.localeCompare(b.name));
     renderProductGrid();
   } catch (err) {
     console.error(err);
