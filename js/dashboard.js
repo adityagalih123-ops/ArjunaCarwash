@@ -135,6 +135,7 @@ async function loadActiveShift() {
       return;
     }
 
+    const shiftId = snap.docs[0].id;
     const shift = snap.docs[0].data();
     box.innerHTML = `
       <div class="flex-between" style="flex-wrap:wrap; gap:10px;">
@@ -143,6 +144,16 @@ async function loadActiveShift() {
           <div class="text-muted" style="font-size:12.5px;">Buka: ${formatJam(toDate(shift.openTime))} &middot; Modal: ${formatRupiah(shift.modalAwal)}</div>
         </div>
         <span class="shift-status open"><span class="dot"></span> Sedang Berjalan</span>
+      </div>
+      <div id="dashKasBox" class="mt-16"><p class="text-muted" style="font-size:12.5px;">Menghitung kas berjalan...</p></div>
+    `;
+
+    const kas = await hitungKasShift(shiftId, shift.modalAwal);
+    document.getElementById("dashKasBox").innerHTML = `
+      <div class="card" style="background:var(--primary-soft); border:none; padding:12px;">
+        <div class="cart-summary-row" style="font-size:13px;"><span>Omzet Berjalan</span><span>${formatRupiah(kas.omzetSemua)}</span></div>
+        <div class="cart-summary-row" style="font-size:13px;"><span>Pengeluaran Shift Ini</span><span class="text-danger">- ${formatRupiah(kas.totalPengeluaran)}</span></div>
+        <div class="cart-summary-row total"><span>Kas Saat Ini</span><span>${formatRupiah(kas.kasSaatIni)}</span></div>
       </div>
     `;
   } catch (err) {

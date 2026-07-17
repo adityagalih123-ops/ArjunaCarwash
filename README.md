@@ -119,6 +119,7 @@ mudah dikembangkan.
   "unitPrice": 45000,
   "totalPrice": 225000,         // qty x unitPrice (dihitung otomatis)
   "notes": "Beli di toko ABC",
+  "shiftId": "abc123",          // shift aktif saat pengeluaran dicatat (null jika tidak ada shift aktif)
   "createdByUid": "uid-user",
   "createdByName": "Budi Santoso",
   "createdAt": Timestamp,
@@ -136,11 +137,20 @@ mudah dikembangkan.
   "modalAwal": 200000,
   "status": "open" | "closed",
   "totalTransaksi": 15,
-  "omzet": 550000,
-  "kasFisik": 745000,
-  "selisihKas": -5000
+  "omzet": 550000,           // omzet semua metode pembayaran
+  "tunaiMasuk": 320000,      // hanya transaksi metode "Tunai" (yang masuk laci kas fisik)
+  "totalPengeluaran": 45000, // total belanja/pengeluaran tercatat pada shift ini
+  "kasSeharusnya": 475000,   // modalAwal + tunaiMasuk - totalPengeluaran
+  "kasFisik": 470000,        // hasil hitung fisik kasir saat tutup shift
+  "selisihKas": -5000        // kasFisik - kasSeharusnya
 }
 ```
+
+**Alur kas real-time:** Modal Awal (saat buka shift) → bertambah dari tiap transaksi
+kasir bermetode **Tunai** → berkurang dari tiap pengeluaran yang dicatat selagi shift
+itu aktif (field `shiftId` pada `expenses` menempel otomatis ke shift yang sedang
+berjalan). Angka **Kas Saat Ini** ini tampil real-time di Dashboard & halaman Shift,
+dan menjadi acuan "Kas Seharusnya" saat proses Tutup Shift.
 
 ### Koleksi `settings/{docId}`
 ```jsonc

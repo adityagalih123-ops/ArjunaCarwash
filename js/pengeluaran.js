@@ -2,6 +2,8 @@
  * pengeluaran.js - Modul Belanja / Pengeluaran
  */
 let currentExpenseList = [];
+let activeShiftForExpense = null;
+let shiftLabelCache = {};
 
 requireAuth(async () => {
   const today = todayKey();
@@ -9,8 +11,49 @@ requireAuth(async () => {
   document.getElementById("filterTo").value = today;
 
   bindEvents();
-  await loadExpenses();
+  await Promise.all([loadActiveShiftInfo(), loadExpenses()]);
 });
+
+async function loadActiveShiftInfo() {
+  const banner = document.getElementById("shiftInfoBanner");
+  try {
+    const snap = await db.collection(COLLECTIONS.SHIFTS).where("status", "==", "open").limit(1).get();
+    if (snap.empty) {
+      activeShiftForExpense = null;
+      banner.innerHTML = `
+        <span class="text-muted" style="font-size:13.5px;">
+          ⚠️ Tidak ada shift aktif. Pengeluaran yang dicatat sekarang <strong>tidak akan mengurangi kas shift manapun</strong>.
+          Buka shift dulu di menu <a href="shift.html" style="color:var(--primary); font-weight:700;">Shift</a> supaya tercatat otomatis.
+        </span>`;
+      return;
+    }
+    activeShiftForExpense = { id: snap.docs[0].id, ...snap.docs[0].data() };
+    banner.innerHTML = `
+      <span style="font-size:13.5px;">
+        ✅ Pengeluaran baru akan otomatis mengurangi kas shift aktif:
+        <strong>${escapeHtml(activeShiftForExpense.cashierName)}</strong>
+        (dibuka ${formatJam(toDate(activeShiftForExpense.openTime))})
+      </span>`;
+  } catch (err) {
+    console.error(err);
+    banner.innerHTML = `<span class="text-danger" style="font-size:13.5px;">Gagal memuat status shift.</span>`;
+  }
+}
+
+async function getShiftLabel(shiftId) {
+  if (!shiftId) return "-";
+  if (shiftLabelCache[shiftId]) return shiftLabelCache[shiftId];
+  try {
+    const doc = await db.collection(COLLECTIONS.SHIFTS).doc(shiftId).get();
+    if (doc.exists) {
+      const d = doc.data();
+      const label = `${formatJam(toDate(d.openTime))} (${d.cashierName})`;
+      shiftLabelCache[shiftId] = label;
+      return label;
+    }
+  } catch (e) { /* abaikan */ }
+  return "-";
+}
 
 function bindEvents() {
   document.getElementById("btnTambah").addEventListener("click", () => openModal());
@@ -49,7 +92,7 @@ async function loadExpenses() {
   const end = firebase.firestore.Timestamp.fromDate(endOfDay(new Date(toStr)));
 
   const tbody = document.getElementById("expenseTableBody");
-  tbody.innerHTML = `<tr><td colspan="8" class="text-center text-muted">Memuat data...</td></tr>`;
+  tbody.innerHTML = `<tr><td colspan="9" class="text-center text-muted">Memuat data...</td></tr>`;
 
   try {
     const snap = await db
@@ -63,10 +106,10 @@ async function loadExpenses() {
       .sort((a, b) => toDate(b.date) - toDate(a.date));
 
     renderSummary();
-    renderTable();
+    await renderTable();
   } catch (err) {
     console.error(err);
-    tbody.innerHTML = `<tr><td colspan="8" class="text-center text-danger">Gagal memuat data.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="9" class="text-center text-danger">Gagal memuat data.</td></tr>`;
   }
 }
 
@@ -87,9 +130,10 @@ function renderTable() {
   }
   empty.style.display = "none";
 
-  tbody.innerHTML = currentExpenseList
-    .map((e) => {
+  return Promise.all(
+    currentExpenseList.map(async (e) => {
       const canManage = isAdmin() || e.createdByUid === currentUser.uid;
+      const shiftLabel = await getShiftLabel(e.shiftId);
       return `
       <tr>
         <td>${formatTanggal(toDate(e.date))}</td>
@@ -98,6 +142,7 @@ function renderTable() {
         <td>${escapeHtml(e.unit)}</td>
         <td class="text-right">${formatRupiah(e.unitPrice)}</td>
         <td class="text-right font-bold">${formatRupiah(e.totalPrice)}</td>
+        <td>${e.shiftId ? escapeHtml(shiftLabel) : `<span class="text-muted">-</span>`}</td>
         <td>${escapeHtml(e.createdByName || "-")}</td>
         <td class="text-right">
           ${canManage ? `
@@ -107,7 +152,9 @@ function renderTable() {
         </td>
       </tr>`;
     })
-    .join("");
+  ).then((rows) => {
+    tbody.innerHTML = rows.join("");
+  });
 }
 
 function openModal(expense = null) {
@@ -207,8 +254,14 @@ async function saveExpense(e) {
       payload.createdByUid = currentUser.uid;
       payload.createdByName = currentUser.name;
       payload.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+      payload.shiftId = activeShiftForExpense ? activeShiftForExpense.id : null;
       await db.collection(COLLECTIONS.EXPENSES).add(payload);
-      showToast("Pengeluaran berhasil dicatat.", "success");
+      showToast(
+        activeShiftForExpense
+          ? "Pengeluaran dicatat & kas shift aktif berkurang."
+          : "Pengeluaran dicatat (tidak terhubung ke shift manapun).",
+        "success"
+      );
     }
     closeModal();
     await loadExpenses();
@@ -220,15 +273,16 @@ async function saveExpense(e) {
   }
 }
 
-function exportCsv() {
+async function exportCsv() {
   if (currentExpenseList.length === 0) {
     showToast("Tidak ada data untuk diexport.", "error");
     return;
   }
-  const header = ["Tanggal", "Nama Item", "Qty", "Satuan", "Harga Satuan", "Harga Total", "Dicatat Oleh", "Catatan"];
+  const header = ["Tanggal", "Nama Item", "Qty", "Satuan", "Harga Satuan", "Harga Total", "Shift", "Dicatat Oleh", "Catatan"];
   const lines = [header.join(",")];
 
-  currentExpenseList.forEach((e) => {
+  for (const e of currentExpenseList) {
+    const shiftLabel = e.shiftId ? await getShiftLabel(e.shiftId) : "-";
     const row = [
       formatTanggal(toDate(e.date)),
       `"${(e.itemName || "").replace(/"/g, '""')}"`,
@@ -236,11 +290,12 @@ function exportCsv() {
       `"${(e.unit || "").replace(/"/g, '""')}"`,
       e.unitPrice,
       e.totalPrice,
+      `"${shiftLabel.replace(/"/g, '""')}"`,
       `"${(e.createdByName || "").replace(/"/g, '""')}"`,
       `"${(e.notes || "").replace(/"/g, '""')}"`
     ];
     lines.push(row.join(","));
-  });
+  }
 
   const blob = new Blob(["\uFEFF" + lines.join("\n")], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);

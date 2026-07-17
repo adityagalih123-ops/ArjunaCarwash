@@ -59,6 +59,18 @@ async function loadShiftState() {
           </div>
         </div>
         <button class="btn btn-danger" onclick="bukaModalTutup()">Tutup Shift</button>
+      </div>
+      <div id="kasBerjalanBox" class="mt-16">
+        <p class="text-muted" style="font-size:13px;">Menghitung kas berjalan...</p>
+      </div>`;
+
+    const kas = await hitungKasShift(activeShiftData.id, activeShiftData.modalAwal);
+    document.getElementById("kasBerjalanBox").innerHTML = `
+      <div class="card" style="background:var(--primary-soft); border:none; padding:14px;">
+        <div class="cart-summary-row"><span>Omzet Berjalan (semua metode)</span><span>${formatRupiah(kas.omzetSemua)}</span></div>
+        <div class="cart-summary-row"><span>Kas Masuk (Tunai)</span><span class="text-success">+ ${formatRupiah(kas.tunaiMasuk)}</span></div>
+        <div class="cart-summary-row"><span>Pengeluaran Shift Ini</span><span class="text-danger">- ${formatRupiah(kas.totalPengeluaran)}</span></div>
+        <div class="cart-summary-row total"><span>Kas Saat Ini</span><span>${formatRupiah(kas.kasSaatIni)}</span></div>
       </div>`;
   } catch (err) {
     console.error(err);
@@ -114,22 +126,17 @@ async function bukaModalTutup() {
   toggleModal("tutupShiftModal", true);
 
   try {
-    const snap = await db
-      .collection(COLLECTIONS.TRANSACTIONS)
-      .where("shiftId", "==", activeShiftData.id)
-      .get();
-
-    let omzet = 0;
-    snap.forEach((doc) => (omzet += doc.data().total || 0));
-
-    activeShiftData._closingPreview = { totalTransaksi: snap.size, omzet };
+    const kas = await hitungKasShift(activeShiftData.id, activeShiftData.modalAwal);
+    activeShiftData._closingPreview = kas;
 
     box.innerHTML = `
       <div class="card" style="background:var(--primary-soft); border:none;">
         <div class="cart-summary-row"><span>Modal Awal</span><span>${formatRupiah(activeShiftData.modalAwal)}</span></div>
-        <div class="cart-summary-row"><span>Total Transaksi</span><span>${snap.size}</span></div>
-        <div class="cart-summary-row"><span>Omzet Shift Ini</span><span>${formatRupiah(omzet)}</span></div>
-        <div class="cart-summary-row total"><span>Kas Seharusnya</span><span>${formatRupiah(activeShiftData.modalAwal + omzet)}</span></div>
+        <div class="cart-summary-row"><span>Total Transaksi</span><span>${kas.totalTransaksi}</span></div>
+        <div class="cart-summary-row"><span>Omzet Semua Metode</span><span>${formatRupiah(kas.omzetSemua)}</span></div>
+        <div class="cart-summary-row"><span>Kas Masuk (Tunai)</span><span class="text-success">+ ${formatRupiah(kas.tunaiMasuk)}</span></div>
+        <div class="cart-summary-row"><span>Pengeluaran Shift Ini</span><span class="text-danger">- ${formatRupiah(kas.totalPengeluaran)}</span></div>
+        <div class="cart-summary-row total"><span>Kas Seharusnya</span><span>${formatRupiah(kas.kasSaatIni)}</span></div>
       </div>`;
   } catch (err) {
     console.error(err);
@@ -145,16 +152,18 @@ async function tutupShift(e) {
   setLoading(btn, true, "Menutup...");
 
   try {
-    const { totalTransaksi, omzet } = activeShiftData._closingPreview;
+    const { totalTransaksi, omzetSemua, tunaiMasuk, totalPengeluaran, kasSaatIni } = activeShiftData._closingPreview;
     const kasFisik = Number(document.getElementById("kasFisik").value) || 0;
-    const kasSeharusnya = activeShiftData.modalAwal + omzet;
-    const selisihKas = kasFisik - kasSeharusnya;
+    const selisihKas = kasFisik - kasSaatIni;
 
     await db.collection(COLLECTIONS.SHIFTS).doc(activeShiftData.id).update({
       status: "closed",
       closeTime: firebase.firestore.FieldValue.serverTimestamp(),
       totalTransaksi,
-      omzet,
+      omzet: omzetSemua,
+      tunaiMasuk,
+      totalPengeluaran,
+      kasSeharusnya: kasSaatIni,
       kasFisik,
       selisihKas
     });
@@ -176,7 +185,7 @@ async function loadRiwayat() {
   try {
     const snap = await db.collection(COLLECTIONS.SHIFTS).orderBy("openTime", "desc").limit(20).get();
     if (snap.empty) {
-      tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted">Belum ada riwayat shift.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="8" class="text-center text-muted">Belum ada riwayat shift.</td></tr>`;
       return;
     }
     tbody.innerHTML = snap.docs
@@ -190,6 +199,7 @@ async function loadRiwayat() {
           <td>${s.closeTime ? formatJam(toDate(s.closeTime)) + " " + formatTanggal(toDate(s.closeTime)) : "-"}</td>
           <td class="text-right">${formatRupiah(s.modalAwal)}</td>
           <td class="text-right">${s.omzet !== undefined ? formatRupiah(s.omzet) : "-"}</td>
+          <td class="text-right">${s.totalPengeluaran !== undefined ? formatRupiah(s.totalPengeluaran) : "-"}</td>
           <td class="text-right ${selisihClass}">${s.selisihKas !== undefined ? formatRupiah(s.selisihKas) : "-"}</td>
           <td class="text-center"><span class="shift-status ${s.status === "open" ? "open" : "closed"}">${s.status === "open" ? "Aktif" : "Tutup"}</span></td>
         </tr>`;
@@ -197,6 +207,6 @@ async function loadRiwayat() {
       .join("");
   } catch (err) {
     console.error(err);
-    tbody.innerHTML = `<tr><td colspan="7" class="text-center text-danger">Gagal memuat riwayat.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="8" class="text-center text-danger">Gagal memuat riwayat.</td></tr>`;
   }
 }

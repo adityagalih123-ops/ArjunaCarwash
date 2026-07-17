@@ -109,6 +109,42 @@ function toDate(ts) {
   return new Date(ts);
 }
 
+// ---------- Hitung posisi kas berjalan untuk satu shift ----------
+// Kas hanya bertambah dari transaksi TUNAI (metode pembayaran non-tunai
+// tidak masuk ke laci kas fisik), dan berkurang dari pengeluaran/belanja
+// yang tercatat pada shift yang sama.
+async function hitungKasShift(shiftId, modalAwal = 0) {
+  const [trxSnap, expSnap] = await Promise.all([
+    db.collection(COLLECTIONS.TRANSACTIONS).where("shiftId", "==", shiftId).get(),
+    db.collection(COLLECTIONS.EXPENSES).where("shiftId", "==", shiftId).get()
+  ]);
+
+  let omzetSemua = 0;
+  let tunaiMasuk = 0;
+  trxSnap.forEach((doc) => {
+    const t = doc.data();
+    omzetSemua += t.total || 0;
+    if ((t.paymentMethod || "Tunai") === "Tunai") {
+      tunaiMasuk += t.total || 0;
+    }
+  });
+
+  let totalPengeluaran = 0;
+  expSnap.forEach((doc) => {
+    totalPengeluaran += doc.data().totalPrice || 0;
+  });
+
+  const kasSaatIni = modalAwal + tunaiMasuk - totalPengeluaran;
+
+  return {
+    totalTransaksi: trxSnap.size,
+    omzetSemua,
+    tunaiMasuk,
+    totalPengeluaran,
+    kasSaatIni
+  };
+}
+
 // ---------- Escape HTML sederhana (mencegah XSS pada render list) ----------
 function escapeHtml(str) {
   const div = document.createElement("div");
