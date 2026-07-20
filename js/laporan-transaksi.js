@@ -8,12 +8,6 @@ let editingTrx = null;
 let editItems = [];
 
 requireAuth(async () => {
-  if (!isAdmin()) {
-    showToast("Halaman ini khusus admin.", "error");
-    window.location.href = "kasir.html";
-    return;
-  }
-
   const today = todayKey();
   document.getElementById("filterFrom").value = today;
   document.getElementById("filterTo").value = today;
@@ -30,7 +24,7 @@ requireAuth(async () => {
   document.getElementById("editDiscountValue").addEventListener("input", recalcEditTotals);
   document.getElementById("btnSimpanEdit").addEventListener("click", saveEditTransaction);
 
-  await Promise.all([loadLaporan(), loadProductsForEdit()]);
+  await Promise.all([loadLaporan(), isAdmin() ? loadProductsForEdit() : Promise.resolve()]);
 });
 
 async function loadProductsForEdit() {
@@ -74,7 +68,7 @@ async function loadLaporan() {
   const end = firebase.firestore.Timestamp.fromDate(endOfDay(new Date(toStr)));
 
   const tbody = document.getElementById("trxTableBody");
-  tbody.innerHTML = `<tr><td colspan="13" class="text-center text-muted">Memuat data...</td></tr>`;
+  tbody.innerHTML = `<tr><td colspan="12" class="text-center text-muted">Memuat data...</td></tr>`;
 
   try {
     const snap = await db
@@ -89,29 +83,22 @@ async function loadLaporan() {
     await renderTable();
   } catch (err) {
     console.error(err);
-    tbody.innerHTML = `<tr><td colspan="13" class="text-center text-danger">Gagal memuat data. ${err.message.includes("index") ? "Buat Firestore index sesuai instruksi di console." : ""}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="12" class="text-center text-danger">Gagal memuat data. ${err.message.includes("index") ? "Buat Firestore index sesuai instruksi di console." : ""}</td></tr>`;
   }
 }
 
 function renderSummary() {
-  let omzet = 0, biayaGaji = 0, biayaOperasional = 0, diskon = 0;
+  let omzet = 0, hpp = 0, diskon = 0;
   currentTrxList.forEach((t) => {
     omzet += t.total || 0;
-    biayaGaji += t.totalLaborCost || 0;
-    biayaOperasional += t.totalOperationalCost || 0;
+    hpp += t.totalHpp || 0;
     diskon += t.discountAmount || 0;
   });
-  // Laba Bersih = Omset - Biaya Gaji - Biaya Operasional - Diskon.
-  // "omzet" di sini pakai t.total (sudah bersih dari diskon), jadi diskon tidak
-  // dikurangi dua kali.
-  const labaBersih = omzet - biayaGaji - biayaOperasional;
-
   document.getElementById("sJumlah").textContent = currentTrxList.length;
   document.getElementById("sOmzet").textContent = formatRupiah(omzet);
-  document.getElementById("sBiayaGaji").textContent = formatRupiah(biayaGaji);
-  document.getElementById("sBiayaOperasional").textContent = formatRupiah(biayaOperasional);
+  document.getElementById("sHpp").textContent = formatRupiah(hpp);
   document.getElementById("sDiskon").textContent = formatRupiah(diskon);
-  document.getElementById("sLaba").textContent = formatRupiah(labaBersih);
+  document.getElementById("sLaba").textContent = formatRupiah(omzet - hpp);
 }
 
 async function renderTable() {
@@ -128,9 +115,7 @@ async function renderTable() {
   const rows = await Promise.all(
     currentTrxList.map(async (t) => {
       const d = toDate(t.createdAt) || new Date();
-      const biayaGaji = t.totalLaborCost || 0;
-      const biayaOperasional = t.totalOperationalCost || 0;
-      const labaBersih = (t.total || 0) - biayaGaji - biayaOperasional;
+      const laba = (t.total || 0) - (t.totalHpp || 0);
       const shiftLabel = await getShiftLabel(t.shiftId);
       const diskonLabel = t.discountAmount > 0
         ? `${formatRupiah(t.discountAmount)}${t.discountReason ? ` (${escapeHtml(t.discountReason)})` : ""}`
@@ -146,9 +131,8 @@ async function renderTable() {
         <td class="text-right">${formatRupiah(t.subtotal ?? t.total)}</td>
         <td class="text-right ${t.discountAmount > 0 ? "text-danger" : "text-muted"}">${diskonLabel}</td>
         <td class="text-right">${formatRupiah(t.total)}</td>
-        <td class="text-right">${formatRupiah(biayaGaji)}</td>
-        <td class="text-right">${formatRupiah(biayaOperasional)}</td>
-        <td class="text-right text-success">${formatRupiah(labaBersih)}</td>
+        <td class="text-right">${formatRupiah(t.totalHpp)}</td>
+        <td class="text-right text-success">${formatRupiah(laba)}</td>
         <td class="text-right">
           ${isAdmin()
             ? `<button class="btn btn-sm" onclick="openEditModal('${t.id}')">Edit</button>`
@@ -280,9 +264,7 @@ function addItemToEdit() {
       name: product.name,
       qty: 1,
       price: product.sellPrice,
-      laborCost: product.laborCost || 0,
-      operationalCost: product.operationalCost || 0,
-      hpp: product.hpp || (product.laborCost || 0) + (product.operationalCost || 0)
+      hpp: product.hpp
     });
   }
   renderEditItems();
@@ -292,23 +274,19 @@ function addItemToEdit() {
 function calcEditTotals() {
   const subtotal = editItems.reduce((sum, i) => sum + i.price * i.qty, 0);
   const totalHpp = editItems.reduce((sum, i) => sum + (i.hpp || 0) * i.qty, 0);
-  const totalLaborCost = editItems.reduce((sum, i) => sum + (i.laborCost || 0) * i.qty, 0);
-  const totalOperationalCost = editItems.reduce((sum, i) => sum + (i.operationalCost || 0) * i.qty, 0);
   const type = document.getElementById("editDiscountType").value;
   const rawValue = Number(document.getElementById("editDiscountValue").value) || 0;
   let discountAmount = rawValue > 0 ? (type === "percent" ? subtotal * (rawValue / 100) : rawValue) : 0;
   discountAmount = Math.max(0, Math.min(discountAmount, subtotal));
   const total = subtotal - discountAmount;
-  const labaBersih = total - totalLaborCost - totalOperationalCost;
-  return { subtotal, totalHpp, totalLaborCost, totalOperationalCost, type, value: rawValue, discountAmount, total, labaBersih };
+  return { subtotal, totalHpp, type, value: rawValue, discountAmount, total };
 }
 
 function recalcEditTotals() {
-  const { subtotal, totalLaborCost, totalOperationalCost, discountAmount, total, labaBersih } = calcEditTotals();
+  const { subtotal, totalHpp, discountAmount, total } = calcEditTotals();
   document.getElementById("editSumSubtotal").textContent = formatRupiah(subtotal);
   document.getElementById("editSumDiscount").textContent = "- " + formatRupiah(discountAmount);
-  document.getElementById("editSumHpp").textContent =
-    `${formatRupiah(totalLaborCost)} + ${formatRupiah(totalOperationalCost)}`;
+  document.getElementById("editSumHpp").textContent = formatRupiah(totalHpp);
   document.getElementById("editSumTotal").textContent = formatRupiah(total);
 }
 
@@ -319,7 +297,7 @@ async function saveEditTransaction() {
     return;
   }
 
-  const { subtotal, totalHpp, totalLaborCost, totalOperationalCost, type, value, discountAmount, total } = calcEditTotals();
+  const { subtotal, totalHpp, type, value, discountAmount, total } = calcEditTotals();
   const reason = document.getElementById("editDiscountReason").value.trim();
   if (discountAmount > 0 && !reason) {
     showToast("Alasan diskon wajib diisi jika ada diskon.", "error");
@@ -337,8 +315,6 @@ async function saveEditTransaction() {
         name: i.name,
         qty: i.qty,
         price: i.price,
-        laborCost: i.laborCost || 0,
-        operationalCost: i.operationalCost || 0,
         hpp: i.hpp || 0,
         subtotal: i.price * i.qty
       })),
@@ -350,8 +326,6 @@ async function saveEditTransaction() {
       paymentMethod,
       total,
       totalHpp,
-      totalLaborCost,
-      totalOperationalCost,
       lastEditedAt: firebase.firestore.FieldValue.serverTimestamp(),
       lastEditedBy: currentUser.name,
       editCount: firebase.firestore.FieldValue.increment(1)
@@ -399,14 +373,12 @@ async function exportCsv() {
     showToast("Tidak ada data untuk diexport.", "error");
     return;
   }
-  const header = ["No Transaksi", "Tanggal", "Jam", "Shift", "Kasir", "Metode Pembayaran", "Subtotal", "Diskon", "Alasan Diskon", "Total", "Biaya Gaji", "Biaya Operasional", "Laba Bersih"];
+  const header = ["No Transaksi", "Tanggal", "Jam", "Shift", "Kasir", "Metode Pembayaran", "Subtotal", "Diskon", "Alasan Diskon", "Total", "HPP", "Laba Kotor"];
   const lines = [header.join(",")];
 
   for (const t of currentTrxList) {
     const d = toDate(t.createdAt) || new Date();
-    const biayaGaji = t.totalLaborCost || 0;
-    const biayaOperasional = t.totalOperationalCost || 0;
-    const labaBersih = (t.total || 0) - biayaGaji - biayaOperasional;
+    const laba = (t.total || 0) - (t.totalHpp || 0);
     const shiftLabel = await getShiftLabel(t.shiftId);
     const row = [
       t.trxNo,
@@ -419,9 +391,8 @@ async function exportCsv() {
       t.discountAmount || 0,
       `"${(t.discountReason || "").replace(/"/g, '""')}"`,
       t.total || 0,
-      biayaGaji,
-      biayaOperasional,
-      labaBersih
+      t.totalHpp || 0,
+      laba
     ];
     lines.push(row.join(","));
   }

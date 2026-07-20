@@ -5,9 +5,7 @@ let allProducts = [];
 
 requireAuth(async () => {
   if (!isAdmin()) {
-    showToast("Halaman ini khusus admin.", "error");
-    window.location.href = "kasir.html";
-    return;
+    document.getElementById("btnTambah").style.display = "none";
   }
   bindEvents();
   await loadProducts();
@@ -56,16 +54,17 @@ function renderTable(filterText = "") {
     <tr>
       <td class="font-bold">${escapeHtml(p.name)}</td>
       <td class="text-right">${formatRupiah(p.sellPrice)}</td>
-      <td class="text-right">${formatRupiah(p.laborCost || 0)}</td>
-      <td class="text-right">${formatRupiah(p.operationalCost || 0)}</td>
+      <td class="text-right">${formatRupiah(p.hpp)}</td>
       <td class="text-center">
         <span class="badge" style="background:${p.active ? "var(--success-light)" : "var(--gray-100)"};color:${p.active ? "var(--success)" : "var(--gray-500)"}">
           ${p.active ? "Aktif" : "Tidak Aktif"}
         </span>
       </td>
       <td class="text-right">
+        ${isAdmin() ? `
         <button class="btn btn-sm" onclick="editProduk('${p.id}')">Edit</button>
         <button class="btn btn-sm btn-danger" onclick="hapusProduk('${p.id}')">Hapus</button>
+        ` : `<span class="text-muted" style="font-size:12px;">Khusus admin</span>`}
       </td>
     </tr>`
     )
@@ -77,8 +76,7 @@ function openModal(product = null) {
   document.getElementById("produkId").value = product?.id || "";
   document.getElementById("namaItem").value = product?.name || "";
   document.getElementById("hargaJual").value = product?.sellPrice ?? "";
-  document.getElementById("biayaGaji").value = product?.laborCost ?? 0;
-  document.getElementById("biayaOperasional").value = product?.operationalCost ?? 0;
+  document.getElementById("hpp").value = product?.hpp ?? "";
   document.getElementById("statusAktif").value = product ? String(!!product.active) : "true";
   document.getElementById("produkModal").classList.add("show");
 }
@@ -110,18 +108,10 @@ async function saveProduk(e) {
   e.preventDefault();
   const btn = document.getElementById("btnSimpanProduk");
   const id = document.getElementById("produkId").value;
-  const laborCost = Number(document.getElementById("biayaGaji").value) || 0;
-  const operationalCost = Number(document.getElementById("biayaOperasional").value) || 0;
-
   const payload = {
     name: document.getElementById("namaItem").value.trim(),
     sellPrice: Number(document.getElementById("hargaJual").value),
-    laborCost,
-    operationalCost,
-    // Field "hpp" tetap disimpan (turunan otomatis) supaya kompatibel dengan
-    // data/kode lama yang mungkin masih membacanya. Field ini TIDAK lagi
-    // ditampilkan/diisi manual di form.
-    hpp: laborCost + operationalCost,
+    hpp: Number(document.getElementById("hpp").value),
     active: document.getElementById("statusAktif").value === "true",
     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
   };

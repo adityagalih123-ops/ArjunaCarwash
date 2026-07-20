@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
-<title>Login - Cucian Mobil POS</title>
+<title>Login - Arjuna Cakra Clean</title>
 <link rel="icon" href="assets/logo.png" />
 <link rel="stylesheet" href="css/style.css" />
 </head>
@@ -11,7 +11,7 @@
 
   <div class="login-card">
     <img src="assets/logo.png" alt="Logo Perusahaan" class="login-logo" />
-    <h1>Cucian Mobil POS</h1>
+    <h1>Arjuna Cakra Clean</h1>
     <p class="subtitle">Masuk untuk mulai bertransaksi</p>
 
     <div id="loginError" class="login-error"></div>
@@ -41,19 +41,9 @@
   <script>
     document.getElementById("year").textContent = new Date().getFullYear();
 
-    async function redirectAfterLogin(uid) {
-      try {
-        const doc = await db.collection(COLLECTIONS.USERS).doc(uid).get();
-        const role = doc.exists ? doc.data().role : "kasir";
-        window.location.href = role === "admin" ? "dashboard.html" : "kasir.html";
-      } catch (e) {
-        window.location.href = "kasir.html";
-      }
-    }
-
-    // Jika sudah login, langsung lempar ke halaman sesuai role
+    // Jika sudah login, langsung lempar ke dashboard
     auth.onAuthStateChanged((user) => {
-      if (user) redirectAfterLogin(user.uid);
+      if (user) window.location.href = "dashboard.html";
     });
 
     const msg = getQueryParam("msg");
@@ -73,9 +63,9 @@
 
       setLoading(btn, true, "Memproses...");
       try {
-        const cred = await auth.signInWithEmailAndPassword(email, password);
+        await auth.signInWithEmailAndPassword(email, password);
         localStorage.setItem("pos_last_activity", String(Date.now()));
-        await redirectAfterLogin(cred.user.uid);
+        window.location.href = "dashboard.html";
       } catch (err) {
         let pesan = "Email atau kata sandi salah.";
         if (err.code === "auth/too-many-requests") pesan = "Terlalu banyak percobaan. Coba lagi nanti.";

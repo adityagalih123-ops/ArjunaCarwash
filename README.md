@@ -52,8 +52,7 @@ pos-cucian-mobil/
 │   ├── laporan-transaksi.js
 │   └── laporan-item.js
 └── assets/
-    ├── logo.png                 # Logo perusahaan (ganti sesuai brand Anda)
-    └── qris-template.svg         # Placeholder QRIS — WAJIB diganti dengan QRIS asli merchant
+    └── logo.png                 # Logo perusahaan (ganti sesuai brand Anda)
 ```
 
 Modular: setiap halaman punya file JS sendiri, sedangkan logika yang
@@ -81,21 +80,12 @@ mudah dikembangkan.
 {
   "name": "Cuci Mobil Reguler",
   "sellPrice": 35000,
-  "laborCost": 8000,        // Biaya Gaji (field baru)
-  "operationalCost": 4000,  // Biaya Operasional (field baru)
-  "hpp": 12000,             // TURUNAN OTOMATIS = laborCost + operationalCost.
-                            // Field lama ini TETAP disimpan (tidak dihapus) demi
-                            // kompatibilitas dengan data/kode lama, tapi TIDAK lagi
-                            // ditampilkan/diisi manual di form Master Produk.
+  "hpp": 12000,
   "active": true,
   "createdAt": Timestamp,
   "updatedAt": Timestamp
 }
 ```
-> **Catatan migrasi:** produk yang dibuat SEBELUM revisi ini hanya punya field
-> `hpp` (tanpa `laborCost`/`operationalCost`). Produk lama akan otomatis
-> dianggap `laborCost: 0` dan `operationalCost: 0` sampai Anda membuka & simpan
-> ulang produk tersebut lewat form Master Produk untuk mengisi nilai barunya.
 
 ### Koleksi `transactions/{trxId}`
 ```jsonc
@@ -105,16 +95,7 @@ mudah dikembangkan.
   "cashierUid": "uid-user",
   "cashierName": "Budi Santoso",
   "items": [
-    {
-      "productId": "p1",
-      "name": "Cuci Mobil Reguler",
-      "qty": 2,
-      "price": 35000,
-      "laborCost": 8000,        // Biaya Gaji per unit (field baru)
-      "operationalCost": 4000,  // Biaya Operasional per unit (field baru)
-      "hpp": 12000,             // turunan otomatis, tetap disimpan demi kompatibilitas
-      "subtotal": 70000
-    }
+    { "productId": "p1", "name": "Cuci Mobil Reguler", "qty": 2, "price": 35000, "hpp": 12000, "subtotal": 70000 }
   ],
   "subtotal": 70000,
   "discountType": "percent" | "nominal" | null,
@@ -123,25 +104,10 @@ mudah dikembangkan.
   "discountReason": "Promo pelanggan setia",
   "paymentMethod": "Tunai" | "Debit/Kredit" | "QRIS" | "Transfer Bank" | "Lainnya",
   "total": 63000,
-  "totalHpp": 24000,            // turunan otomatis, tetap disimpan demi kompatibilitas
-  "totalLaborCost": 16000,      // field baru — dipakai untuk hitung Laba Bersih
-  "totalOperationalCost": 8000, // field baru — dipakai untuk hitung Laba Bersih
-  "lastEditedAt": Timestamp,    // hanya ada jika transaksi pernah diedit admin
-  "lastEditedBy": "Nama Admin", // hanya ada jika transaksi pernah diedit admin
-  "editCount": 1,               // hanya ada jika transaksi pernah diedit admin
+  "totalHpp": 24000,
   "createdAt": Timestamp
 }
 ```
-
-**Laba Bersih** = Omset − Biaya Gaji − Biaya Operasional − Diskon. Karena field
-`total` sudah bersih dari diskon (`total = subtotal - discountAmount`), rumus di
-kode memakai `total - totalLaborCost - totalOperationalCost` supaya diskon tidak
-terkurangi dua kali — hasilnya identik dengan rumus di atas.
-
-> **Catatan migrasi:** transaksi yang dibuat SEBELUM revisi ini tidak punya
-> field `totalLaborCost`/`totalOperationalCost`, sehingga akan dihitung 0 pada
-> laporan (Laba Bersih transaksi lama = Omset penuh). Ini adalah batasan wajar
-> dari perubahan skema tanpa migrasi data historis.
 
 ### Koleksi `expenses/{expenseId}` — Belanja/Pengeluaran
 ```jsonc
@@ -300,21 +266,16 @@ Setelah selesai, Firebase akan memberikan URL seperti
 
 | Fitur                         | Admin | Kasir |
 |--------------------------------|:-----:|:-----:|
-| Menu yang terlihat di sidebar  | Semua menu | Hanya **Kasir, Shift, Belanja/Pengeluaran** |
 | Login & transaksi kasir        | ✅    | ✅    |
 | Buka/Tutup shift               | ✅    | ✅    |
 | Edit harga saat transaksi      | ✅    | Hanya jika `canEditPrice: true` |
-| Akses halaman Dashboard        | ✅    | ❌ (redirect otomatis ke Kasir) |
-| Akses halaman Master Produk    | ✅    | ❌ (redirect otomatis ke Kasir) |
-| Akses halaman Laporan Transaksi/Item | ✅ | ❌ (redirect otomatis ke Kasir) |
-| Edit transaksi yang sudah tersimpan | ✅ | ❌ |
+| Tambah/Edit/Hapus master produk| ✅    | ❌ (read-only) |
 | Catat pengeluaran/belanja      | ✅    | ✅    |
 | Edit/Hapus catatan pengeluaran | ✅ (semua) | Hanya catatan miliknya sendiri |
+| Lihat laporan                  | ✅    | ✅    |
 
 Role dan `canEditPrice` diatur lewat field pada dokumen
-`users/{uid}` di Firestore Console. Pembatasan akses halaman di atas
-ditegakkan di sisi client (redirect) — pastikan Firestore Rules (`firestore.rules`)
-tetap menjadi lapisan keamanan utama, bukan hanya UI.
+`users/{uid}` di Firestore Console.
 
 ---
 
@@ -334,12 +295,6 @@ tetap menjadi lapisan keamanan utama, bukan hanya UI.
   pada `style.css` bila perlu).
 - Untuk menambah field/laporan baru, cukup tambahkan file JS baru dan
   ikuti pola yang sama (`requireAuth(...)` di awal file).
-- **PENTING — Gambar QRIS:** `assets/qris-template.svg` hanyalah contoh/placeholder
-  (bukan kode QRIS asli, tidak bisa dipakai untuk transaksi sungguhan). Ganti
-  file ini dengan gambar QRIS resmi dari bank/penyedia layanan pembayaran Anda
-  (simpan dengan nama file yang sama, `qris-template.svg`, atau ubah nama file
-  di `kasir.html` bila memakai nama berbeda) supaya pelanggan bisa scan dan
-  membayar dengan benar.
 
 ---
 
