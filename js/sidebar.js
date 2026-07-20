@@ -5,13 +5,13 @@
  */
 
 const MENU_ITEMS = [
-  { page: "dashboard", href: "dashboard.html", label: "Dashboard", icon: "grid" },
-  { page: "kasir", href: "kasir.html", label: "Kasir", icon: "cart" },
-  { page: "shift", href: "shift.html", label: "Shift", icon: "clock" },
-  { page: "produk", href: "produk.html", label: "Master Produk", icon: "box" },
-  { page: "pengeluaran", href: "pengeluaran.html", label: "Belanja/Pengeluaran", icon: "wallet" },
-  { page: "laporan-transaksi", href: "laporan-transaksi.html", label: "Laporan Transaksi", icon: "list" },
-  { page: "laporan-item", href: "laporan-item.html", label: "Laporan Item Terjual", icon: "chart" }
+  { page: "dashboard", href: "dashboard.html", label: "Dashboard", icon: "grid", adminOnly: true },
+  { page: "kasir", href: "kasir.html", label: "Kasir", icon: "cart", adminOnly: false },
+  { page: "shift", href: "shift.html", label: "Shift", icon: "clock", adminOnly: false },
+  { page: "produk", href: "produk.html", label: "Master Produk", icon: "box", adminOnly: true },
+  { page: "pengeluaran", href: "pengeluaran.html", label: "Belanja/Pengeluaran", icon: "wallet", adminOnly: false },
+  { page: "laporan-transaksi", href: "laporan-transaksi.html", label: "Laporan Transaksi", icon: "list", adminOnly: true },
+  { page: "laporan-item", href: "laporan-item.html", label: "Laporan Item Terjual", icon: "chart", adminOnly: true }
 ];
 
 const ICONS = {
@@ -30,8 +30,11 @@ function renderShell() {
   const mount = document.getElementById("shell");
   if (!mount) return;
   const activePage = document.body.dataset.page || "";
+  const isAdminUser = currentUser?.role === "admin";
 
-  const navHtml = MENU_ITEMS.map((item) => `
+  const visibleItems = MENU_ITEMS.filter((item) => !item.adminOnly || isAdminUser);
+
+  const navHtml = visibleItems.map((item) => `
     <a class="nav-link ${item.page === activePage ? "active" : ""}" href="${item.href}">
       <span class="nav-icon">${ICONS[item.icon]}</span>
       <span>${item.label}</span>
@@ -43,7 +46,7 @@ function renderShell() {
       <button id="btnToggleSidebar" class="icon-btn" aria-label="Menu">${ICONS.menu}</button>
       <div class="topbar-brand">
         <img src="assets/logo.png" alt="Logo" class="topbar-logo" />
-        <span>Arjuna Cakra Clean</span>
+        <span>Cucian Mobil POS</span>
       </div>
       <div class="topbar-user">
         <span class="user-name">${escapeHtml(currentUser?.name || "")}</span>
@@ -55,8 +58,8 @@ function renderShell() {
       <div class="sidebar-brand">
         <img src="assets/logo.png" alt="Logo" />
         <div>
-          <strong>Arjuna Cakra Clean</strong>
-          <small>clean is style</small>
+          <strong>Cucian Mobil</strong>
+          <small>Point of Sale</small>
         </div>
       </div>
       <nav class="sidebar-nav">${navHtml}</nav>
