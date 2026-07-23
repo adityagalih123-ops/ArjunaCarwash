@@ -2,10 +2,16 @@
  * dashboard.js
  */
 requireAuth(async () => {
+  if (!isAdmin()) {
+    showToast("Halaman ini khusus admin.", "error");
+    window.location.href = "kasir.html";
+    return;
+  }
+
   document.getElementById("todayLabel").textContent =
     "Ringkasan " + formatTanggal(new Date());
 
-  await Promise.all([loadTodayStats(), loadWeekChart(), loadActiveShift()]);
+  await Promise.all([loadTodayStats(), loadTodayExpenses(), loadWeekChart(), loadActiveShift()]);
 });
 
 async function loadTodayStats() {
@@ -21,31 +27,52 @@ async function loadTodayStats() {
 
     let omzet = 0;
     let totalKendaraan = 0;
-    const produkCount = {};
+    let totalLaborCost = 0;
+    let totalOperationalCost = 0;
 
     snap.forEach((doc) => {
       const trx = doc.data();
       omzet += trx.total || 0;
+      // totalLaborCost/totalOperationalCost baru ada di transaksi sejak fitur
+      // biaya ini ditambahkan; transaksi lama (belum punya field ini) dihitung 0.
+      totalLaborCost += trx.totalLaborCost || 0;
+      totalOperationalCost += trx.totalOperationalCost || 0;
       (trx.items || []).forEach((it) => {
         totalKendaraan += it.qty || 0;
-        produkCount[it.name] = (produkCount[it.name] || 0) + it.qty;
       });
     });
 
-    document.getElementById("statOmzet").textContent = formatRupiah(omzet);
-    document.getElementById("statTrx").textContent = snap.size;
-    document.getElementById("statKendaraan").textContent = totalKendaraan;
+    // Laba Bersih = Omset - Biaya Gaji - Biaya Operasional - Diskon.
+    // Karena "total" transaksi sudah bersih dari diskon (total = subtotal - diskon),
+    // maka Omset di sini pakai "total" supaya diskon tidak dikurangi dua kali.
+    const labaBersih = omzet - totalLaborCost - totalOperationalCost;
 
-    let terlaris = "-";
-    let max = 0;
-    Object.entries(produkCount).forEach(([name, qty]) => {
-      if (qty > max) { max = qty; terlaris = name; }
-    });
-    document.getElementById("statTerlaris").textContent =
-      terlaris === "-" ? "-" : `${terlaris} (${max}x)`;
+    document.getElementById("statOmzet").textContent = formatRupiah(omzet);
+    document.getElementById("statLaba").textContent = formatRupiah(labaBersih);
+    document.getElementById("statKendaraan").textContent = totalKendaraan;
   } catch (err) {
     console.error(err);
     showToast("Gagal memuat statistik hari ini.", "error");
+  }
+}
+
+async function loadTodayExpenses() {
+  const start = firebase.firestore.Timestamp.fromDate(startOfDay(new Date()));
+  const end = firebase.firestore.Timestamp.fromDate(endOfDay(new Date()));
+
+  try {
+    const snap = await db
+      .collection(COLLECTIONS.EXPENSES)
+      .where("date", ">=", start)
+      .where("date", "<=", end)
+      .get();
+
+    let totalPengeluaran = 0;
+    snap.forEach((doc) => (totalPengeluaran += doc.data().totalPrice || 0));
+    document.getElementById("statPengeluaran").textContent = formatRupiah(totalPengeluaran);
+  } catch (err) {
+    console.error(err);
+    document.getElementById("statPengeluaran").textContent = "Rp 0";
   }
 }
 
@@ -149,11 +176,15 @@ async function loadActiveShift() {
     `;
 
     const kas = await hitungKasShift(shiftId, shift.modalAwal);
+    const omzetNonTunai = kas.omzetSemua - kas.tunaiMasuk;
     document.getElementById("dashKasBox").innerHTML = `
       <div class="card" style="background:var(--primary-soft); border:none; padding:12px;">
-        <div class="cart-summary-row" style="font-size:13px;"><span>Omzet Berjalan</span><span>${formatRupiah(kas.omzetSemua)}</span></div>
+        <div class="cart-summary-row" style="font-size:13px;"><span>Omzet Tunai</span><span>${formatRupiah(kas.tunaiMasuk)}</span></div>
+        <div class="cart-summary-row" style="font-size:13px;"><span>Omzet Non-Tunai</span><span>${formatRupiah(omzetNonTunai)}</span></div>
+        <div class="cart-summary-row" style="font-size:13px; border-top:1px dashed var(--gray-200); padding-top:8px;"><span>Total Omzet Berjalan</span><span>${formatRupiah(kas.omzetSemua)}</span></div>
         <div class="cart-summary-row" style="font-size:13px;"><span>Pengeluaran Shift Ini</span><span class="text-danger">- ${formatRupiah(kas.totalPengeluaran)}</span></div>
         <div class="cart-summary-row total"><span>Kas Saat Ini</span><span>${formatRupiah(kas.kasSaatIni)}</span></div>
+        <div class="text-muted mt-8" style="font-size:11px;">Kas Saat Ini = Modal Awal + Omzet Tunai − Pengeluaran</div>
       </div>
     `;
   } catch (err) {

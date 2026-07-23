@@ -4,6 +4,12 @@
 let itemAggList = [];
 
 requireAuth(async () => {
+  if (!isAdmin()) {
+    showToast("Halaman ini khusus admin.", "error");
+    window.location.href = "kasir.html";
+    return;
+  }
+
   const today = todayKey();
   document.getElementById("filterFrom").value = today;
   document.getElementById("filterTo").value = today;
@@ -29,7 +35,7 @@ async function loadLaporan() {
   const end = firebase.firestore.Timestamp.fromDate(endOfDay(new Date(toStr)));
 
   const tbody = document.getElementById("itemTableBody");
-  tbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted">Memuat data...</td></tr>`;
+  tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted">Memuat data...</td></tr>`;
 
   try {
     const snap = await db
@@ -44,11 +50,14 @@ async function loadLaporan() {
       (trx.items || []).forEach((it) => {
         const key = it.productId || it.name;
         if (!map[key]) {
-          map[key] = { name: it.name, qty: 0, omzet: 0, hpp: 0 };
+          map[key] = { name: it.name, qty: 0, omzet: 0, biayaGaji: 0, biayaOperasional: 0 };
         }
         map[key].qty += it.qty || 0;
         map[key].omzet += it.subtotal || it.price * it.qty || 0;
-        map[key].hpp += (it.hpp || 0) * (it.qty || 0);
+        // laborCost/operationalCost baru ada sejak fitur biaya ini ditambahkan;
+        // item transaksi lama (belum punya field ini) dihitung 0.
+        map[key].biayaGaji += (it.laborCost || 0) * (it.qty || 0);
+        map[key].biayaOperasional += (it.operationalCost || 0) * (it.qty || 0);
       });
     });
 
@@ -56,7 +65,7 @@ async function loadLaporan() {
     sortAndRender();
   } catch (err) {
     console.error(err);
-    tbody.innerHTML = `<tr><td colspan="5" class="text-center text-danger">Gagal memuat data.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6" class="text-center text-danger">Gagal memuat data.</td></tr>`;
   }
 }
 
@@ -81,13 +90,17 @@ function renderTable(list) {
 
   tbody.innerHTML = list
     .map((it) => {
-      const laba = it.omzet - it.hpp;
+      // Laba Bersih per item: Omset - Biaya Gaji - Biaya Operasional.
+      // Diskon tidak diprorasi ke item karena diskon dicatat di level transaksi,
+      // bukan per item (lihat Laporan Transaksi untuk Laba Bersih setelah diskon).
+      const laba = it.omzet - it.biayaGaji - it.biayaOperasional;
       return `
       <tr>
         <td class="font-bold">${escapeHtml(it.name)}</td>
         <td class="text-right">${it.qty}</td>
         <td class="text-right">${formatRupiah(it.omzet)}</td>
-        <td class="text-right">${formatRupiah(it.hpp)}</td>
+        <td class="text-right">${formatRupiah(it.biayaGaji)}</td>
+        <td class="text-right">${formatRupiah(it.biayaOperasional)}</td>
         <td class="text-right text-success">${formatRupiah(laba)}</td>
       </tr>`;
     })
@@ -104,11 +117,11 @@ function exportCsv() {
     sortBy === "omzet" ? b.omzet - a.omzet : b.qty - a.qty
   );
 
-  const header = ["Nama Item", "Qty Terjual", "Omzet", "Total HPP", "Laba Kotor"];
+  const header = ["Nama Item", "Qty Terjual", "Omzet", "Biaya Gaji", "Biaya Operasional", "Laba Bersih"];
   const lines = [header.join(",")];
   sorted.forEach((it) => {
-    const laba = it.omzet - it.hpp;
-    lines.push([`"${it.name.replace(/"/g, '""')}"`, it.qty, it.omzet, it.hpp, laba].join(","));
+    const laba = it.omzet - it.biayaGaji - it.biayaOperasional;
+    lines.push([`"${it.name.replace(/"/g, '""')}"`, it.qty, it.omzet, it.biayaGaji, it.biayaOperasional, laba].join(","));
   });
 
   const blob = new Blob(["\uFEFF" + lines.join("\n")], { type: "text/csv;charset=utf-8;" });

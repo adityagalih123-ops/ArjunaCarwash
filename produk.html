@@ -28,9 +28,10 @@
         <table>
           <thead>
             <tr>
-              <th>Nama Item</th>
+              <th>Item</th>
               <th class="text-right">Harga Jual</th>
-              <th class="text-right">HPP</th>
+              <th class="text-right">Biaya Gaji</th>
+              <th class="text-right">Biaya Operasional</th>
               <th class="text-center">Status</th>
               <th class="text-right">Aksi</th>
             </tr>
@@ -52,17 +53,21 @@
       <form id="produkForm">
         <input type="hidden" id="produkId" />
         <div class="form-group">
-          <label for="namaItem">Nama Item</label>
+          <label for="namaItem">Item</label>
           <input type="text" id="namaItem" placeholder="Contoh: Cuci Mobil Reguler" required />
+        </div>
+        <div class="form-group">
+          <label for="hargaJual">Harga Jual</label>
+          <input type="number" id="hargaJual" min="0" step="500" required />
         </div>
         <div class="form-row cols-2">
           <div class="form-group">
-            <label for="hargaJual">Harga Jual</label>
-            <input type="number" id="hargaJual" min="0" step="500" required />
+            <label for="biayaGaji">Biaya Gaji</label>
+            <input type="number" id="biayaGaji" min="0" step="500" required />
           </div>
           <div class="form-group">
-            <label for="hpp">HPP (Harga Pokok)</label>
-            <input type="number" id="hpp" min="0" step="500" required />
+            <label for="biayaOperasional">Biaya Operasional</label>
+            <input type="number" id="biayaOperasional" min="0" step="500" required />
           </div>
         </div>
         <div class="form-group">

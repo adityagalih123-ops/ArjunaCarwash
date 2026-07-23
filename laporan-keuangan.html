@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<title>Laporan Keuangan - Cucian Mobil POS</title>
+<link rel="icon" href="assets/logo.png" />
+<link rel="stylesheet" href="css/style.css" />
+<style>
+  /* Kartu ringkasan keuangan bergaya "waterfall" - dibuat mudah dibaca orang awam */
+  .fin-flow { display: flex; flex-direction: column; gap: 10px; }
+  .fin-card {
+    background: var(--white); border: 1px solid var(--gray-200); border-radius: var(--radius-md);
+    padding: 16px 18px; box-shadow: var(--shadow-sm);
+  }
+  .fin-card.plus { border-left: 4px solid var(--success); }
+  .fin-card.minus { border-left: 4px solid var(--danger); }
+  .fin-card.result { border-left: 4px solid var(--primary); background: var(--primary-soft); }
+  .fin-card.final { border-left: 4px solid var(--primary-dark); background: var(--primary-light); }
+  .fin-row { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 8px; }
+  .fin-label { font-weight: 700; font-size: 14.5px; color: var(--gray-800); }
+  .fin-value { font-weight: 800; font-size: 19px; }
+  .fin-value.plus-color { color: var(--success); }
+  .fin-value.minus-color { color: var(--danger); }
+  .fin-value.neutral-color { color: var(--primary-dark); }
+  .fin-desc { font-size: 12.5px; color: var(--gray-500); margin-top: 4px; }
+  .fin-sub { display: flex; justify-content: space-between; font-size: 12.5px; color: var(--gray-600); margin-top: 6px; padding-top:6px; border-top: 1px dashed var(--gray-200); }
+  .fin-arrow { text-align: center; color: var(--gray-300); font-size: 18px; margin: -2px 0; }
+  .fin-badge { font-size: 11px; padding: 2px 8px; border-radius: 20px; font-weight: 700; }
+  .fin-badge.pos { background: var(--success-light); color: var(--success); }
+  .fin-badge.neg { background: var(--danger-light); color: var(--danger); }
+
+  @media print {
+    .no-print { display: none !important; }
+    .sidebar, .topbar, .sidebar-overlay { display: none !important; }
+    .content { margin-left: 0 !important; padding: 0 !important; }
+    body { background: #fff; }
+    .fin-card { break-inside: avoid; box-shadow: none; }
+  }
+</style>
+</head>
+<body data-page="laporan-keuangan">
+  <div id="shell"></div>
+
+  <main class="content">
+    <div class="page-header no-print">
+      <div>
+        <h1>Laporan Keuangan</h1>
+        <p>Ringkasan omset, biaya, dan keuntungan — disusun sederhana, tanpa istilah akuntansi rumit</p>
+      </div>
+      <button class="btn btn-primary" id="btnDownloadPdf">⬇ Download PDF</button>
+    </div>
+
+    <div class="card mb-16 no-print">
+      <div class="form-row cols-3">
+        <div class="form-group" style="margin-bottom:0;">
+          <label for="filterFrom">Dari Tanggal</label>
+          <input type="date" id="filterFrom" />
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+          <label for="filterTo">Sampai Tanggal</label>
+          <input type="date" id="filterTo" />
+        </div>
+        <div class="form-group" style="margin-bottom:0; display:flex; align-items:flex-end;">
+          <button class="btn btn-primary w-full" id="btnFilter">Terapkan Filter</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Kop laporan khusus tampil saat cetak/PDF -->
+    <div id="printHeader" style="display:none; text-align:center; margin-bottom:18px;">
+      <h2 style="margin:0;">Laporan Keuangan</h2>
+      <p id="printPeriod" style="margin:4px 0; color:#555;"></p>
+    </div>
+
+    <div id="loadingState" class="card">
+      <p class="text-muted">Memuat data keuangan...</p>
+    </div>
+
+    <div id="finContent" class="fin-flow" style="display:none;">
+
+      <!-- 1. OMSET -->
+      <div class="fin-card plus">
+        <div class="fin-row">
+          <span class="fin-label">1. Total Omset</span>
+          <span class="fin-value plus-color" id="fOmset">Rp 0</span>
+        </div>
+        <div class="fin-desc">Seluruh uang dari penjualan sebelum dipotong diskon — gabungan pembayaran tunai &amp; non-tunai.</div>
+        <div class="fin-sub"><span>💵 Omset Tunai</span><span id="fOmsetTunai">Rp 0</span></div>
+        <div class="fin-sub"><span>💳 Omset Non-Tunai (QRIS/Debit/Transfer/dll)</span><span id="fOmsetNonTunai">Rp 0</span></div>
+      </div>
+
+      <div class="fin-arrow">▼</div>
+
+      <!-- 2. DISKON -->
+      <div class="fin-card minus">
+        <div class="fin-row">
+          <span class="fin-label">2. Total Diskon</span>
+          <span class="fin-value minus-color" id="fDiskon">- Rp 0</span>
+        </div>
+        <div class="fin-desc">Potongan harga yang diberikan ke pelanggan selama periode ini.</div>
+      </div>
+
+      <div class="fin-arrow">▼</div>
+
+      <!-- 3. OMSET BERSIH -->
+      <div class="fin-card result">
+        <div class="fin-row">
+          <span class="fin-label">3. Total Omset Bersih</span>
+          <span class="fin-value neutral-color" id="fOmsetBersih">Rp 0</span>
+        </div>
+        <div class="fin-desc">Uang yang benar-benar diterima dari pelanggan setelah dikurangi diskon (Omset − Diskon).</div>
+      </div>
+
+      <div class="fin-arrow">▼</div>
+
+      <!-- 4 & 4b. BIAYA -->
+      <div class="fin-card minus">
+        <div class="fin-row">
+          <span class="fin-label">4. Total Biaya Operasional</span>
+          <span class="fin-value minus-color" id="fBiayaOperasional">- Rp 0</span>
+        </div>
+        <div class="fin-desc">Biaya operasional yang "ditanggungkan" ke setiap layanan terjual, sesuai isian Biaya Operasional di Master Produk.</div>
+      </div>
+      <div class="fin-card minus">
+        <div class="fin-row">
+          <span class="fin-label">5. Total Biaya Gaji</span>
+          <span class="fin-value minus-color" id="fBiayaGaji">- Rp 0</span>
+        </div>
+        <div class="fin-desc">Biaya gaji yang "ditanggungkan" ke setiap layanan terjual, sesuai isian Biaya Gaji di Master Produk.</div>
+      </div>
+
+      <div class="fin-arrow">▼</div>
+
+      <!-- 5. LABA BERSIH -->
+      <div class="fin-card result">
+        <div class="fin-row">
+          <span class="fin-label">6. Total Laba Bersih</span>
+          <span class="fin-value neutral-color" id="fLabaBersih">Rp 0</span>
+        </div>
+        <div class="fin-desc">Keuntungan bersih dari penjualan: Omset Bersih − Biaya Operasional − Biaya Gaji.</div>
+      </div>
+
+      <!-- MARGIN COMPARISON -->
+      <div class="card no-print" style="margin-top:8px; background:var(--gray-50); border-style:dashed;">
+        <strong style="font-size:13.5px;">🔍 Bandingkan dengan pengeluaran yang benar-benar terjadi</strong>
+        <p class="text-muted mt-8" style="font-size:12.5px;">
+          Biaya di atas (poin 4 &amp; 5) adalah biaya yang "dianggarkan" lewat harga jual produk.
+          Sekarang kita bandingkan dengan uang yang <strong>benar-benar dikeluarkan</strong>
+          (dicatat di menu Belanja/Pengeluaran). Jika pengeluaran asli lebih kecil dari anggaran,
+          sisanya jadi keuntungan tambahan buat pemilik usaha — begitu juga sebaliknya.
+        </p>
+      </div>
+
+      <!-- 6. MARGIN OPERASIONAL -->
+      <div class="fin-card" id="cardMarginOps">
+        <div class="fin-row">
+          <span class="fin-label">7. Margin Operasional</span>
+          <span class="fin-value" id="fMarginOps">Rp 0</span>
+        </div>
+        <div class="fin-desc">Selisih Biaya Operasional (dianggarkan) dengan Pengeluaran Operasional (dicatat di Belanja/Pengeluaran).</div>
+        <div class="fin-sub"><span>Biaya Operasional (dianggarkan)</span><span id="fMOpsBudget">Rp 0</span></div>
+        <div class="fin-sub"><span>Pengeluaran Operasional (aktual)</span><span id="fMOpsActual">Rp 0</span></div>
+      </div>
+
+      <!-- 7. MARGIN GAJI -->
+      <div class="fin-card" id="cardMarginGaji">
+        <div class="fin-row">
+          <span class="fin-label">8. Margin Gaji</span>
+          <span class="fin-value" id="fMarginGaji">Rp 0</span>
+        </div>
+        <div class="fin-desc">Selisih Biaya Gaji (dianggarkan) dengan Pengeluaran Gaji (dicatat di Belanja/Pengeluaran).</div>
+        <div class="fin-sub"><span>Biaya Gaji (dianggarkan)</span><span id="fMGajiBudget">Rp 0</span></div>
+        <div class="fin-sub"><span>Pengeluaran Gaji (aktual)</span><span id="fMGajiActual">Rp 0</span></div>
+      </div>
+
+      <div class="fin-arrow">▼</div>
+
+      <!-- 8. MARGIN OWNER -->
+      <div class="fin-card final">
+        <div class="fin-row">
+          <span class="fin-label" style="font-size:16px;">💰 Margin Owner (Keuntungan Riil Pemilik)</span>
+          <span class="fin-value neutral-color" style="font-size:24px;" id="fMarginOwner">Rp 0</span>
+        </div>
+        <div class="fin-desc">Laba Bersih + Margin Operasional + Margin Gaji — ini angka keuntungan paling nyata buat pemilik usaha, setelah memperhitungkan efisiensi pengeluaran sungguhan.</div>
+      </div>
+
+      <p class="text-muted no-print" style="font-size:11.5px; margin-top:4px;" id="uncategorizedWarning"></p>
+    </div>
+  </main>
+
+  <script src="https://www.gstatic.com/firebasejs/12.16.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/12.16.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore-compat.js"></script>
+  <script src="js/firebase-config.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/auth-guard.js"></script>
+  <script src="js/sidebar.js"></script>
+  <script src="js/laporan-keuangan.js"></script>
+</body>
+</html>

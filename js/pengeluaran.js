@@ -92,7 +92,7 @@ async function loadExpenses() {
   const end = firebase.firestore.Timestamp.fromDate(endOfDay(new Date(toStr)));
 
   const tbody = document.getElementById("expenseTableBody");
-  tbody.innerHTML = `<tr><td colspan="9" class="text-center text-muted">Memuat data...</td></tr>`;
+  tbody.innerHTML = `<tr><td colspan="10" class="text-center text-muted">Memuat data...</td></tr>`;
 
   try {
     const snap = await db
@@ -109,7 +109,7 @@ async function loadExpenses() {
     await renderTable();
   } catch (err) {
     console.error(err);
-    tbody.innerHTML = `<tr><td colspan="9" class="text-center text-danger">Gagal memuat data.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="10" class="text-center text-danger">Gagal memuat data.</td></tr>`;
   }
 }
 
@@ -134,10 +134,15 @@ function renderTable() {
     currentExpenseList.map(async (e) => {
       const canManage = isAdmin() || e.createdByUid === currentUser.uid;
       const shiftLabel = await getShiftLabel(e.shiftId);
+      const kategori = e.category || "Operasional"; // fallback untuk data lama sebelum field ini ada
+      const kategoriBadge = kategori === "Gaji"
+        ? `<span class="badge" style="background:#fdf3e7;color:#d97706;">Gaji</span>`
+        : `<span class="badge" style="background:var(--primary-light);color:var(--primary-dark);">Operasional</span>`;
       return `
       <tr>
         <td>${formatTanggal(toDate(e.date))}</td>
         <td class="font-bold">${escapeHtml(e.itemName)}</td>
+        <td>${kategoriBadge}</td>
         <td class="text-right">${e.qty}</td>
         <td>${escapeHtml(e.unit)}</td>
         <td class="text-right">${formatRupiah(e.unitPrice)}</td>
@@ -162,6 +167,7 @@ function openModal(expense = null) {
   document.getElementById("expenseId").value = expense?.id || "";
   document.getElementById("tanggalBeli").value = expense ? todayKey(toDate(expense.date)) : todayKey();
   document.getElementById("namaItemBeli").value = expense?.itemName || "";
+  document.getElementById("kategoriBeli").value = expense?.category || "Operasional";
   document.getElementById("qtyBeli").value = expense?.qty ?? "";
   document.getElementById("hargaSatuanBeli").value = expense?.unitPrice ?? "";
   document.getElementById("catatanBeli").value = expense?.notes || "";
@@ -237,6 +243,7 @@ async function saveExpense(e) {
   const payload = {
     date: firebase.firestore.Timestamp.fromDate(startOfDay(new Date(tanggalStr))),
     itemName: document.getElementById("namaItemBeli").value.trim(),
+    category: document.getElementById("kategoriBeli").value,
     qty,
     unit,
     unitPrice,
@@ -278,7 +285,7 @@ async function exportCsv() {
     showToast("Tidak ada data untuk diexport.", "error");
     return;
   }
-  const header = ["Tanggal", "Nama Item", "Qty", "Satuan", "Harga Satuan", "Harga Total", "Shift", "Dicatat Oleh", "Catatan"];
+  const header = ["Tanggal", "Nama Item", "Kategori", "Qty", "Satuan", "Harga Satuan", "Harga Total", "Shift", "Dicatat Oleh", "Catatan"];
   const lines = [header.join(",")];
 
   for (const e of currentExpenseList) {
@@ -286,6 +293,7 @@ async function exportCsv() {
     const row = [
       formatTanggal(toDate(e.date)),
       `"${(e.itemName || "").replace(/"/g, '""')}"`,
+      e.category || "Operasional",
       e.qty,
       `"${(e.unit || "").replace(/"/g, '""')}"`,
       e.unitPrice,

@@ -33,6 +33,10 @@ function bindEvents() {
   });
   document.getElementById("discountType").addEventListener("change", renderCart);
   document.getElementById("discountValue").addEventListener("input", renderCart);
+
+  document.getElementById("paymentMethod").addEventListener("change", (e) => {
+    document.getElementById("qrisBox").style.display = e.target.value === "QRIS" ? "block" : "none";
+  });
 }
 
 async function loadProducts() {
@@ -99,7 +103,9 @@ function addToCart(productId) {
       productId: product.id,
       name: product.name,
       price: product.sellPrice,
-      hpp: product.hpp,
+      laborCost: product.laborCost || 0,
+      operationalCost: product.operationalCost || 0,
+      hpp: product.hpp || (product.laborCost || 0) + (product.operationalCost || 0),
       qty: 1
     });
   }
@@ -229,7 +235,9 @@ async function prosesTransaksi() {
   try {
     const trxNo = await generateNomorTransaksi();
     const total = subtotal - discountAmount;
-    const totalHpp = cart.reduce((sum, i) => sum + i.hpp * i.qty, 0);
+    const totalHpp = cart.reduce((sum, i) => sum + (i.hpp || 0) * i.qty, 0);
+    const totalLaborCost = cart.reduce((sum, i) => sum + (i.laborCost || 0) * i.qty, 0);
+    const totalOperationalCost = cart.reduce((sum, i) => sum + (i.operationalCost || 0) * i.qty, 0);
     const now = new Date();
 
     const trxData = {
@@ -242,7 +250,9 @@ async function prosesTransaksi() {
         name: i.name,
         qty: i.qty,
         price: i.price,
-        hpp: i.hpp,
+        laborCost: i.laborCost || 0,
+        operationalCost: i.operationalCost || 0,
+        hpp: i.hpp || 0,
         subtotal: i.price * i.qty
       })),
       subtotal,
@@ -253,6 +263,8 @@ async function prosesTransaksi() {
       paymentMethod,
       total,
       totalHpp,
+      totalLaborCost,
+      totalOperationalCost,
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     };
 
@@ -266,6 +278,7 @@ async function prosesTransaksi() {
     document.getElementById("discountBox").style.display = "none";
     document.getElementById("btnToggleDiscount").textContent = "+ Tambah Diskon";
     document.getElementById("paymentMethod").value = "Tunai";
+    document.getElementById("qrisBox").style.display = "none";
     renderCart();
   } catch (err) {
     console.error(err);

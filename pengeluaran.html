@@ -56,6 +56,7 @@
             <tr>
               <th>Tanggal</th>
               <th>Nama Item</th>
+              <th>Kategori</th>
               <th class="text-right">Qty</th>
               <th>Satuan</th>
               <th class="text-right">Harga Satuan</th>
@@ -88,6 +89,13 @@
         <div class="form-group">
           <label for="namaItemBeli">Nama Item</label>
           <input type="text" id="namaItemBeli" placeholder="Contoh: Sabun Shampoo Mobil" required />
+        </div>
+        <div class="form-group">
+          <label for="kategoriBeli">Kategori Pengeluaran</label>
+          <select id="kategoriBeli" required>
+            <option value="Operasional">Belanja Operasional (perlengkapan, listrik, sewa, dll)</option>
+            <option value="Gaji">Belanja Gaji (upah/insentif karyawan)</option>
+          </select>
         </div>
         <div class="form-row cols-2">
           <div class="form-group">
